@@ -202,30 +202,33 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
         retval = res.json()
         if retval["status"] == "running" or retval["status"] == "waiting" or retval["status"] == "paused":
             pass
-        elif retval["status"] == "abend":
-            sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+        elif retval["status"] == "abend" or retval["status"] == "canceld":
+            if retval["status"] == "abend":
+                sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            else:
+                sys.stderr.write("%s - ランがキャンセルされました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
             for tool_name in tool_names:
                 #tool_name = "%s_%s"%(workflow_id, tool_name)
                 # ツール標準出力の取得
                 weburl = "https://%s:50443/workflow-api/v2/runs/%s/tools?tool=%s"%(url, runid, tool_name)
-                sys.stderr.write(weburl)
-                filename = "%s_stdout.log"
+                sys.stderr.write("%s\n"%weburl)
+                filename = "%s_stdout.log"%tool_name
                 outfile = open(filename, "w")
                 outfile.write("stdout contents of tool name %s --------------------\n"%tool_name)
                 res = nodeREDWorkflowAPI(token, weburl)
                 #sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
                 outfile.write("%s\n"%res.text)
                 outfile.close()
-                sys.stderr.write("writing stdout info for tool(%s) to %s"%(tool_name, filename))
+                sys.stderr.write("writing stdout info for tool(%s) to %s\n"%(tool_name, filename))
             # ラン詳細の取得
             weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
             sys.stderr.write(weburl)
             res = nodeREDWorkflowAPI(token, weburl)
-            outfile = open("run_%s_detail.log"%runid)
+            outfile = open("run_%s_detail.log"%runid, "w")
             outfile.write("detail for run(%s) --------------------\n"%runid)
             outfile.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
             outfile.close()
-            sys.stderr.write("wrote run detail info to run_%s_detail.log"%runid)
+            sys.stderr.write("wrote run detail info to run_%s_detail.log\n"%runid)
             
             sys.exit(1)
         else:
@@ -248,19 +251,16 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
         res = nodeREDWorkflowAPI(token, weburl)
         if res.status_code != 200 and res.status_code != 201:
             if retry_count == 5:
-                sys.stderr.write("%s - 結果取得失敗。5秒後に再取得を試みます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-            else:
                 sys.stderr.write("%s - 結果取得失敗。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.exit(1)
+            else:
+                sys.stderr.write("%s - 結果取得失敗。５分後に再取得を試みます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                time.sleep(300.0)
+            retry_count += 1
             if res.status_code == 500:
                 sys.stderr.write("%s\n"%res.text)
             else:
                 sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
-            #sys.exit(1)
-            if retry_count == 5:
-                sys.exit(1)
-            else:
-                time.sleep(5.0)
-            retry_count += 1
             continue
         wf_tools = res.json()["url_list"][0]['workflow_tools'] 
         outputfilenames = {}
@@ -272,9 +272,14 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
         for tool in wf_tools:
             tool_outputs = tool["tool_outputs"]
             if len(tool_outputs) == 0:
-                sys.stderr.write('tool["tool_outputs"] が空？\n')
-                #sys.exit(1)
-                break
+                if retry_count == 5:
+                    sys.stderr.write('tool["tool_outputs"] が空？取得できませんでした。終了します。\n')
+                    sys.exit(1)
+                else:
+                    sys.stderr.write('tool["tool_outputs"] が空？５秒後に再取得します。\n')
+                    time.sleep(5.0)
+                    retry_count += 1
+                    break
             for item in tool_outputs:
                 filename = "/tmp/" + item["parameter_name"]
                 outputfilenames[item["parameter_name"]] = filename
