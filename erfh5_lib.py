@@ -419,8 +419,11 @@ class erfh5Object(object):
             elif len(ffile[item]) != 0:
                 if erfh5_xml is None:
                     hdf_dict[item] = self.erfh5ToDict(ffile[item], item, spc)
+                elif self.tag_print is True:
+                    hdf_dict[item], valueid = self.erfh5ToXMLFileOnlyTags(ffile[item], item, spc)
                 else:
-                    hdf_dict[item] = self.erfh5ToXMLFile(ffile[item], item, spc, erfh5_xml_object)
+                    hdf_dict[item], valueid = self.erfh5ToXMLFileOnlyTags(ffile[item], item, spc)
+                    #hdf_dict[item] = self.erfh5ToXMLFile(ffile[item], item, spc, erfh5_xml_object)
                     #for value in hdf_dict[item]:
                     #    erfh5_xml_object.write('%s%s\n'%(spc, value))
             if erfh5_xml is not None:
@@ -430,9 +433,8 @@ class erfh5Object(object):
     
         if erfh5_xml is not None:
             erfh5_xml_object.close()
-            return True
-        else:
-            return hdf_dict
+
+        return hdf_dict
 
     def erfh5ToXMLFileMultiprocess(self, item_chain, spc, hdffilename, tag_print):
         '''
@@ -948,6 +950,54 @@ class erfh5Object(object):
                 xmlfileobject.write('%s</%s>\n'%(spc, item))
     
         return True
+
+    def erfh5ToXMLFileOnlyTags(self, hdf_items, item_chain, spc, valueId=0):
+        '''
+        HDF5の内容を再帰的に読んで、XMLファイルのタグのみを出力する
+        @param hdf_items (object)   HDF5クラスインスタンス
+        @param item_chain (string)　ここまでのタグツリー
+        @param spc (string)         XMLの整形用空白文字列
+        @param valueId (int)        辞書の位置を表すID（０から
+        @retval (bool)
+        '''
+    
+        spc += "  "
+    
+        hdf_dict = {}
+        for item in hdf_items:
+            item_chain_new = item_chain + "/" + item
+            if isinstance(hdf_items[item], h5py.Dataset) is True:
+                hdf_dict[item] = {}
+                if self.tag_print is True:
+                    if len(hdf_items[item].shape) == 0:
+                        print('%s<%s shape="0" type="%s">'%(spc, item, hdf_items[item][()].dtype))
+                    elif len(hdf_items[item].shape) == 1:
+                        print('%s<%s shape="%s" type="%s">'%(spc, item, hdf_items[item].shape[0], hdf_items[item][()].dtype))
+                    elif len(hdf_items[item].shape) == 2:
+                        print('%s<%s shape="%s x %s" type="%s">'%(spc, item, hdf_items[item].shape[1], hdf_items[item].shape[0], hdf_items[item][()].dtype))
+                    elif len(hdf_items[item].shape) == 3: 
+                        print('%s<%s shape="%s x %s x %s" type="%s">'%(spc, item, hdf_items[item].shape[2], hdf_items[item].shape[1], hdf_items[item].shape[0], hdf_items[item][()].dtype))
+                    else:
+                        sys.stderr.write("%s shape = %s type=%s\n"%(item, str(hdf_items[item].shape), hdf_items[item].dtype)) 
+                hdf_dict[item]["contents"] = ""
+                hdf_dict[item]["TAG_ID"] = "TAG%015d"%valueId
+                valueId += 1
+                if self.tag_print is True:
+                    print('%s</%s>'%(spc, item))
+            elif len(hdf_items[item]) != 0:
+                if self.tag_print is True:
+                    print('%s<%s type="HDF5 Group Tag">'%(spc, item))
+                hdf_dict[item] = {}
+                hdf_dict[item]["TAG_ID"] = "TAG%015d"%valueId
+                valueId += 1
+                hdf_dict[item]["contents"], valueId = self.erfh5ToXMLFileOnlyTags(hdf_items[item], item_chain_new, spc, valueId)
+                if self.tag_print is True:
+                    print('%s</%s>'%(spc, item))
+            else:
+                #sys.stderr.write('%s type="%s"\n'%(item, str(hdf_items[item][()].dtype)))
+                sys.stderr.write('%s type="%s"\n'%(item, type(hdf_items[item])))
+    
+        return hdf_dict, valueId
     
     def erfh5ToDict(self, hdf_items, item_chain, spc):
         '''
@@ -1014,31 +1064,28 @@ def main():
 
     erfh5_file = sys.argv[1]
     erfh5_xml = None
-    param = None
-    if len(sys.argv) == 3:
-        param = sys.argv[2]
-        if param == "--help":
-            print_help()
+    if sys.argv == "--help":
+        print_help()
 
     if os.path.exists(erfh5_file) is False:
         sys.stderr.write("cannot read erfh5 file(%s) in current directory(./%s)"%(erfh5_file, os.path.basename(os.getcwd())))
         sys.exit(1)
 
-    if param == "--xml-with-tag":
+    if ("--xml-with-tag" in sys.argv) is True:
         erfh5 = erfh5Object(tag_print=True)
     else:
         erfh5 = erfh5Object()
 
-    if param == "--xml" or param == "--xml-with-tag":
+    if ("--xml" in sys.argv) is True or ("--xml-with-tag" in sys.argv) is True:
         erfh5_xml = os.path.basename(erfh5_file).split(".")[0] + ".xml"
         erfh5.readErfh5FileToXML(erfh5_file, erfh5_xml)
-    elif param == "--xml-by-thread":
+    elif ("--xml-by-thread" in sys.argv) is True:
         print("xml write using by threading process\n")
         erfh5_xml = erfh5.readErfh5FileToXMLByMulti(erfh5_file)
-    elif param == "--xml-by-multiprocess":
+    elif ("--xml-by-multiprocess" in sys.argv) is True:
         print("xml write using by multi-processing\n")
         erfh5_xml = erfh5.readErfh5FileToXMLByMulti(erfh5_file, "multiprocess")
-    elif param == "--dict":
+    elif ("--dict" in sys.argv) is True:
         ffile = h5py.File(erfh5_file, "r")
         hdf_dict = {}
         spc = ""
@@ -1047,7 +1094,7 @@ def main():
                 continue
             hdf_dict = erfh5.erfh5ToDict(item, "", spc)
 
-    elif param == "--max-temp":
+    elif ("--max-temp" in sys.argv) is True:
         erfh5_xml = os.path.basename(erfh5_file).split(".")[0] + ".xml"
         if os.path.exists(erfh5_xml) is False:
             print("not found xml file(%s)"%erfh5_xml)
@@ -1056,6 +1103,8 @@ def main():
         if ret is True:
             #print("MAX Temperature is %f"%max_value)
             print("%f"%max_value)
+    else:
+        print(str(sys.argv))
 
     #print(hdf_dict)
 if __name__ == '__main__':

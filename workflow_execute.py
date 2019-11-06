@@ -10,7 +10,6 @@ import json
 import datetime
 import base64
 import time
-from common_lib import *
 import random
 import subprocess
 import signal
@@ -19,9 +18,12 @@ try:
     has_mysql = True
 except:
     has_mysql = False
+from common_lib import *
+from workflow_params import *
 
 prev_workflow_id = None
-prev_workflow_info = None
+input_ports_prev = None
+output_ports_prev = None
 STOP_FLAG = False
 
 def signal_handler(signum, frame):
@@ -51,65 +53,26 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
     '''
 
     global prev_workflow_id
-    global prev_workflow_info
+    global input_ports_prev
+    global output_ports_prev
     global STOP_FLAG
 
     logfile = "workflow_exec.%s.log"%url
 
     # 前回と同じworkflow_idなら詳細を取得しない。
     if prev_workflow_id != workflow_id:
-        while True:
-            weburl = "https://%s:50443/workflow-api/v2/workflows/%s"%(url, workflow_id)
-            res = nodeREDWorkflowAPI(token, weburl)
-            if res.status_code != 200 and res.status_code != 201:
-                sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s). wating 5 seconds.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
-                time.sleep(5.0)
-                continue
-            retval = res.json()
-            break
-
+        miwf_contents, input_ports, output_ports = extract_workflow_params(workflow_id, token, url)
+        if miwf_contents is False:
+            sys.stderr.write("%s - ワークフローの情報を取得できませんでした。終了します。。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
+            sys.exit(1)
     else:
-        retval = prev_workflow_info
+        input_ports = input_ports_prev
+        output_ports = output_ports_prev
 
     prev_workflow_id = workflow_id
-    prev_workflow_info = retval
-    #print(json.dumps(retval, ensure_ascii=False, indent=4))
-    revision = 0
-    # 最新リビジョンの情報を取得するための検索
-    for item in retval["revisions"]:
-        if item["workflow_revision"] > revision:
-            revision = item["workflow_revision"]
-    
-    # 最新リビジョンのmiwfを取得する
-    miwf_contents = None
-    for item in retval["revisions"]:
-        if item["workflow_revision"] == revision:
-            miwf_contents = item["miwf"]["mainWorkflow"]["diagramModel"]["nodeDataArray"]
-    
-    # ツールの名前を取得する
-    tool_names = []
-    for item in miwf_contents:
-        if item["category"] == "module":
-            tool_names.append(item["name"])
-    
-    #print(json.dumps(miwf_contents, ensure_ascii=False, indent=4))
-    #sys.exit(0)
-    
-    # 各ポート情報を取得する
-    input_ports = []
-    output_ports = []
-    for item in miwf_contents:
-        if item["category"] == "inputdata":
-            #print("port name = %s"%item["name"])
-            input_ports.append([item["name"], item["descriptor"], item["paramtype"]])
-    
-    for item in miwf_contents:
-        if item["category"] == "outputdata":
-            output_ports.append([item["name"], item["descriptor"], item["paramtype"]])
-    
-    #print(input_ports)
-    #print(output_ports)
-    
+    input_ports_prev = input_ports
+    output_ports_prev = output_ports
+
     # Runパラメータの構築
     run_params = {}
     run_params["description"] = "API経由ワークフロー実行 %s\n\n"%datetime.datetime.now()
@@ -147,82 +110,105 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
     run_params["workflow_parameters"] = workflow_params
     
     # ワークフローの実行
-    weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
-    params = {"workflow_id":"%s"%workflow_id}
-    res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), "post")
-    
-    # 実行の可否
-    if res.status_code != 200 and res.status_code != 201:
-        #print(res.text)
-        #print("%s - False 実行できませんでした。(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
-        sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
-        #status_out("False 実行できませんでした。(%s)"%res.text)
-        #sys.exit(1)
-        if number != "-1":
-            # 起動に失敗したら、しばらく待って、tomcat@apiを再実行してまたしばらく待って、続行する。
-            print("%s - 60秒後にtomcat@apiを再実行します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-            time.sleep(60)
-            subprocess.call("systemctl restart tomcat@api", shell=True, executable='/bin/bash')
-            print("%s - tomcat@apiを再起動しました。120秒後にランを再開します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-            time.sleep(120)
-        return
+    retry_count = 0
+    while True:
+        weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
+        params = {"workflow_id":"%s"%workflow_id}
+        res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), "post")
         
-    else:
-        # らん番号の取得
-        runid = res.json()["run_id"]
-        #runid = "http://sipmi.org/workflow/runs/R000010000000403"
-        runid = runid.split("/")[-1]
-        #print("%s - ワークフロー実行中（%s）"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
-        sys.stderr.write("%s - ワークフロー実行中（%s）\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
-        outfile = open(logfile, "a")
-        outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
-        for item in input_params:
-            if input_params[item] == "initial_setting.dat":
-                continue
-
-            #print("param file name = %s"%input_params[item])
-            #sys.stderr.write("param file name = %s\n"%input_params[item])
-            infile = open(input_params[item])
-            value = infile.read().split("\n")[0]
-            outfile.write("%s=%s,"%(item, value))
-        outfile.write("\n")
-        outfile.close()
-        #status_out("ワークフロー実行中（%s）"%runid)
-        if number != "-1":
+        # 実行の可否
+        if res.status_code != 200 and res.status_code != 201:
+            #print(res.text)
+            #print("%s - False 実行できませんでした。(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
+            sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
+            #status_out("False 実行できませんでした。(%s)"%res.text)
+            #sys.exit(1)
+            if number == "-1":
+                if retry_count == 5:
+                    sys.stderr.write("%s - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    return
+                else:
+                    retry_count += 1
+                    sys.stderr.write("%s - ６０秒後、実行リトライ。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    time.sleep(60)
+                    continue
+            else:
+                # 起動に失敗したら、しばらく待って、tomcat@apiを再実行してまたしばらく待って、続行する。
+                print("%s - 60秒後にtomcat@apiを再実行します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                time.sleep(60)
+                subprocess.call("systemctl restart tomcat@api", shell=True, executable='/bin/bash')
+                print("%s - tomcat@apiを再起動しました。120秒後にランを再開します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                time.sleep(120)
             return
+            
+        else:
+            # らん番号の取得
+            runid = res.json()["run_id"]
+            #runid = "http://sipmi.org/workflow/runs/R000010000000403"
+            runid = runid.split("/")[-1]
+            #print("%s - ワークフロー実行中（%s）"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
+            sys.stderr.write("%s - ワークフロー実行中（%s）\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
+            outfile = open(logfile, "a")
+            outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
+            for item in input_params:
+                if input_params[item] == "initial_setting.dat":
+                    continue
+    
+                #print("param file name = %s"%input_params[item])
+                #sys.stderr.write("param file name = %s\n"%input_params[item])
+                infile = open(input_params[item])
+                value = infile.read().split("\n")[0]
+                outfile.write("%s=%s,"%(item, value))
+            outfile.write("\n")
+            outfile.close()
+            #status_out("ワークフロー実行中（%s）"%runid)
+            if number != "-1":
+                return
+            break
     
     # ラン終了待機
     weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
     #print("ワークフロー実行中...")
     while True:
         res = nodeREDWorkflowAPI(token, weburl)
-        if res.status_code != 200 and res.status_code != 201:
+        if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
             print("%s - 異常な終了コードを受信しました(%d)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
             continue
         retval = res.json()
         if retval["status"] == "running" or retval["status"] == "waiting" or retval["status"] == "paused":
             pass
-        elif retval["status"] == "abend" or retval["status"] == "canceld":
+        elif retval["status"] == "abend" or retval["status"] == "canceled":
             if retval["status"] == "abend":
                 sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
             else:
                 sys.stderr.write("%s - ランがキャンセルされました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            tool_names = []
+            for item in miwf_contents:
+                if ("category" in item) is True:
+                    if item["category"] == "module":
+                        if ("name" in item) is True:
+                            tool_names.append(item["name"])
+
             for tool_name in tool_names:
                 #tool_name = "%s_%s"%(workflow_id, tool_name)
                 # ツール標準出力の取得
                 weburl = "https://%s:50443/workflow-api/v2/runs/%s/tools?tool=%s"%(url, runid, tool_name)
                 sys.stderr.write("%s\n"%weburl)
-                filename = "%s_stdout.log"%tool_name
-                outfile = open(filename, "w")
-                outfile.write("stdout contents of tool name %s --------------------\n"%tool_name)
                 res = nodeREDWorkflowAPI(token, weburl)
-                #sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
-                outfile.write("%s\n"%res.text)
-                outfile.close()
-                sys.stderr.write("writing stdout info for tool(%s) to %s\n"%(tool_name, filename))
+                if res.text != "":
+                    filename = "%s_stdout.log"%tool_name
+                    outfile = open(filename, "w")
+                    outfile.write("stdout contents of tool name %s --------------------\n"%tool_name)
+                    #sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
+                    outfile.write("%s\n"%res.text)
+                    #outfile.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
+                    outfile.close()
+                    sys.stderr.write("writing stdout info for tool(%s) to %s\n"%(tool_name, filename))
+                else:
+                    sys.stderr.write("cannot get stdout contents of tool name %s\n"%tool_name)
             # ラン詳細の取得
             weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
-            sys.stderr.write(weburl)
+            #sys.stderr.write("%s\n"%weburl)
             res = nodeREDWorkflowAPI(token, weburl)
             outfile = open("run_%s_detail.log"%runid, "w")
             outfile.write("detail for run(%s) --------------------\n"%runid)

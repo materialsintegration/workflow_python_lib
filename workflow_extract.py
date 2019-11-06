@@ -49,6 +49,7 @@ def workflow_run(workflow_id, token, url, input_params, number, seed=None):
     else:
         retval = prev_workflow_info
 
+    print(json.dumps(retval, ensure_ascii=False, indent=2))
     outfile = open(workflow_file, "w")
     outfile.write(json.dumps(retval))
     outfile.close

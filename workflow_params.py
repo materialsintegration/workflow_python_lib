@@ -10,8 +10,6 @@ import json
 import datetime
 import base64
 import time
-import random
-import subprocess
 
 sys.path.append("~/assets/modules/workflow_python/lib")
 from common_lib import *
@@ -29,47 +27,74 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def workflow_params(workflow_id, token, url):
+def extract_workflow_params(workflow_id, token, url):
     '''
-    ワークフロー実行
+    ワークフロー詳細情報を取得
     '''
 
-    weburl = "https://%s:50443/workflow-api/v2/workflows/%s"%(url, workflow_id)
-    res = nodeREDWorkflowAPI(token, weburl)
-    retval = res.json()
+    retry_count = 0
+    while True:
+        weburl = "https://%s:50443/workflow-api/v2/workflows/%s"%(url, workflow_id)
+        res = nodeREDWorkflowAPI(token, weburl)
 
-    revision = 0
-    # 最新リビジョンの情報を取得するための検索
-    for item in retval["revisions"]:
-        if item["workflow_revision"] > revision:
-            revision = item["workflow_revision"]
-    
-    # 最新リビジョンのmiwfを取得する
-    miwf_contents = None
-    for item in retval["revisions"]:
-        if item["workflow_revision"] == revision:
-            miwf_contents = item["miwf"]["mainWorkflow"]["diagramModel"]["nodeDataArray"]
-    
-    #print(json.dumps(miwf_contents, ensure_ascii=False, indent=4))
-    
-    # 各ポート情報を取得する
-    input_ports = []
-    output_ports = []
-    for item in miwf_contents:
-        if item["category"] == "inputdata":
-            #print("port name = %s"%item["name"])
-            input_ports.append([item["name"], item["descriptor"], item["paramtype"], item["required"]])
-    
-    for item in miwf_contents:
-        if item["category"] == "outputdata":
-            output_ports.append([item["name"], item["descriptor"], item["paramtype"]])
+        retry_count += 1
+        if res.status_code != 200 and res.status_conde != 201:
+            if retry_count > 5:
+                sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s). reached retry count, giving up.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
+                return False, None, None
+            else:
+                sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s). wating 5 minuts.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
+                time.sleep(300)
+                continue
 
-    print("input parameters")
-    for item in input_ports:
-        print("port = %s(%s)"%(item[0], item[3]))
-    print("output for results")
-    for item in output_ports:
-        print("port = %s(%s)"%(item[0], item[2]))
+        retval = res.json()
+    
+        revision = 0
+        # 最新リビジョンの情報を取得するための検索
+        if ("revisions" in retval) is True:
+            for item in retval["revisions"]:
+                if item["workflow_revision"] > revision:
+                    revision = item["workflow_revision"]
+        else:
+            if retry_count > 5:
+                sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s/revisions). reached retry count, giving up.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
+                return False, None, None
+            else:
+                sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s/revisions). wating 5 minuts.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
+                time.sleep(300)
+                continue
+        
+        # 最新リビジョンのmiwfを取得する
+        miwf_contents = None
+        if ("revisions" in retval) is True:
+            for item in retval["revisions"]:
+                if item["workflow_revision"] == revision:
+                    miwf_contents = item["miwf"]["mainWorkflow"]["diagramModel"]["nodeDataArray"]
+        else:
+            if retry_count > 5:
+                sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s/contents of miwf). reached retry count, giving up.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
+                return False, None, None
+            else:
+                sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s/contents of miwf). wating 5 minuts.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
+                time.sleep(300)
+                continue
+        
+        #print(json.dumps(miwf_contents, ensure_ascii=False, indent=4))
+        
+        # 各ポート情報を取得する
+        input_ports = []
+        output_ports = []
+        for item in miwf_contents:
+            if item["category"] == "inputdata":
+                #print("port name = %s"%item["name"])
+                input_ports.append([item["name"], item["descriptor"], item["paramtype"], item["required"]])
+        
+        for item in miwf_contents:
+            if item["category"] == "outputdata":
+                output_ports.append([item["name"], item["descriptor"], item["paramtype"]])
+
+        break
+    return miwf_contents, input_ports, output_ports
 
 def main():
     '''
@@ -99,8 +124,24 @@ def main():
             seed = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
+    
+    if token is None or workflow_id is None or url is None:
+        print("Usage")
+        print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL"%(sys.argv[0]))
+        print("          workflow_id : Mで始まる16桁のワークフローID")
+        print("               token  : 64文字のAPIトークン")
+        print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        sys.exit(1)
 
-    workflow_params(workflow_id, token, url)
+    miwf, input_ports, output_ports = extract_workflow_params(workflow_id, token, url)
+
+    print("input parameters")
+    for item in input_ports:
+        print("port = %s(%s)"%(item[0], item[3]))
+    print("output for results")
+    for item in output_ports:
+        print("port = %s(%s)"%(item[0], item[2]))
+
 
 if __name__ == '__main__':
     main()
