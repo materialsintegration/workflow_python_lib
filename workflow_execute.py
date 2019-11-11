@@ -13,6 +13,8 @@ import time
 import random
 import subprocess
 import signal
+import traceback
+
 try:
     import mysql.connector
     has_mysql = True
@@ -173,6 +175,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
         res = nodeREDWorkflowAPI(token, weburl)
         if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
             print("%s - 異常な終了コードを受信しました(%d)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+            time.sleep(120)
             continue
         retval = res.json()
         if retval["status"] == "running" or retval["status"] == "waiting" or retval["status"] == "paused":
@@ -230,6 +233,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
     #time.sleep(10)
     # 結果ファイルの取得
     weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
+    os.mkdir("/tmp/%s"%runid)
     retry_count = 0
     while True:
         if STOP_FLAG is True:
@@ -267,14 +271,19 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
                     retry_count += 1
                     break
             for item in tool_outputs:
-                filename = "/tmp/" + item["parameter_name"]
+                filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
                 outputfilenames[item["parameter_name"]] = filename
                 #print("outputfile:%s"%item["file_path"])
+                sys.stderr.write("file size = %s\n"%item["file_size"])
                 weburl = item["file_path"]
                 res = nodeREDWorkflowAPI(token, weburl, method="get_noheader")
-                outfile = open(filename, "w")
-                outfile.write("%s"%res.text)
-                outfile.close()
+                try:
+                    outfile = open(filename, "w")
+                    outfile.write("%s"%res.text)
+                    outfile.close()
+                except:
+                    sys.stderr.write("%s\n"%traceback.format_exc())
+                    sys.stderr.write("%sのファイルの保存に失敗しました\n"%item["parameter_name"])
                 #sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
                 print("%s:%s"%(item["parameter_name"], filename))
                 #print("%s:%s"%(item["parameter_name"], res.text))
