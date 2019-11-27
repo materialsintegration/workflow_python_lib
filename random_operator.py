@@ -9,8 +9,38 @@ import random
 import os, sys
 import time
 
-def random_with_num(random_type, random_val1, random_val2, random_num, random_seed, disporlist=True):
+def rand(num, random_val1, random_val2):
+
+    n_iter = num
+    segSize = 1/float(n_iter)
+    print("segSize = %f"%segSize)
+
+    random_list = []
+    point_list = []
+    for i in range(n_iter):
+        segMin = float(i) * segSize
+        print("segMin = %f"%segMin)
+        #point = segMin + (random.normalvariate(random_val1, random_val1 * random_val2) * segSize)
+        point = segMin + (random.normalvariate(7.5, 1) * segSize)
+        #point = segMin + (random.gauss(random_val1, random_val1 * random_val2) * segSize)
+        #point = segMin + (random.gauss(7.6, 1) * segSize)
+        pointValue = (point * ((random_val1 * (1 + random_val2)) - (random_val1 * (1 - random_val2)))) + random_val1
+        #print(point)
+        #print(pointValue)
+        point_list.append(point)
+        random_list.append(pointValue)
+
+    return point_list, random_list
+
+def random_with_num_with_lhypercube(random_type, random_val1, random_val2, random_num, random_seed, disporlist=True):
     '''
+    各乱数生成法を使用して個数分の乱数をラテンハイパーキューブ法を使用して抽出する
+    @param random_type (string)
+    @param random_val1 (value)
+    @param random_val2 (value)
+    @param random_seed (string)
+    @param disporlist (bool)
+    @retval disporlist is True: only print, False: returen dict
     '''
 
     random_list = []
@@ -18,15 +48,55 @@ def random_with_num(random_type, random_val1, random_val2, random_num, random_se
 
     for i in range(random_num):
         if random_type == "uniform": 
-            value = random.uniform(random_val1, random_val2)
+            min_value = random_val1 * (1.0 - random_val2)
+            max_value = random_val1 * (1.0 + random_val2)
+            value = random.uniform(min_value, max_value)
         elif random_type == "gauss": 
-            value = random.gauss(random_val1, random_val2)
+            value = random.gauss(random_val1, random_val1 * random_val2)
         elif random_type == "gamma": 
             value = random.gamma(random_val1, random_val2)
         elif random_type == "log": 
-            value = random.lognormvariate(random_val1, random_val2)
+            value = random.lognormvariate(random_val1, random_val1 * random_val2)
         elif random_type == "normal": 
-            value = random.normalvariate(random_val1, random_val2)
+            value = random.normalvariate(random_val1, random_val1 * random_val2)
+        else:
+            value = random.random()
+        if disporlist is True:
+            print("%f"%value)
+        else:
+            random_list.append(value)
+    
+    if disporlist is True:
+        sys.stderr.write("%s\n"%random_seed)
+    else:
+        return random_list, random_seed
+def random_with_num(random_type, random_val1, random_val2, random_num, random_seed, disporlist=True):
+    '''
+    各乱数生成法を使用して個数分の乱数を生成する
+    @param random_type (string)
+    @param random_val1 (value)
+    @param random_val2 (value)
+    @param random_seed (string)
+    @param disporlist (bool)
+    @retval disporlist is True: only print, False: returen dict
+    '''
+
+    random_list = []
+    random.seed(random_seed)
+
+    for i in range(random_num):
+        if random_type == "uniform": 
+            min_value = random_val1 * (1.0 - random_val2)
+            max_value = random_val1 * (1.0 + random_val2)
+            value = random.uniform(min_value, max_value)
+        elif random_type == "gauss": 
+            value = random.gauss(random_val1, random_val1 * random_val2)
+        elif random_type == "gamma": 
+            value = random.gamma(random_val1, random_val2)
+        elif random_type == "log": 
+            value = random.lognormvariate(random_val1, random_val1 * random_val2)
+        elif random_type == "normal": 
+            value = random.normalvariate(random_val1, random_val1 * random_val2)
         else:
             value = random.random()
         if disporlist is True:

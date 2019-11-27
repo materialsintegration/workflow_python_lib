@@ -38,7 +38,7 @@ def extract_workflow_params(workflow_id, token, url):
         res = nodeREDWorkflowAPI(token, weburl)
 
         retry_count += 1
-        if res.status_code != 200 and res.status_conde != 201:
+        if res.status_code != 200 and res.status_code != 201:
             if retry_count > 5:
                 sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s). reached retry count, giving up.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
                 return False, None, None
