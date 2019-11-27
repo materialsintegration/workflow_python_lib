@@ -150,6 +150,9 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
             runid = runid.split("/")[-1]
             #print("%s - ワークフロー実行中（%s）"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             sys.stderr.write("%s - ワークフロー実行中（%s）\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
+            url_runid = int(runid[1:])
+            sys.stderr.write("%s - ラン詳細ページ  https://%s/workflow/runs/%s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), url, url_runid))
+            sys.stderr.flush()
             outfile = open(logfile, "a")
             outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             for item in input_params:
@@ -229,6 +232,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
     #
     #print("ワークフロー実行終了")
     sys.stderr.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+    sys.stderr.flush()
     
     #time.sleep(10)
     # 結果ファイルの取得
@@ -274,9 +278,16 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
                 filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
                 outputfilenames[item["parameter_name"]] = filename
                 #print("outputfile:%s"%item["file_path"])
-                sys.stderr.write("file size = %s\n"%item["file_size"])
+                #sys.stderr.write("file size = %s\n"%item["file_size"])
                 weburl = item["file_path"]
-                res = nodeREDWorkflowAPI(token, weburl, method="get_noheader")
+                while True:
+                    res = nodeREDWorkflowAPI(token, weburl, method="get_noheader")
+                    if res.status_code == 500:
+                        sys.stderr.write("%s - 結果を取得できませんでした。５分後に再取得します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                        time.sleep(300)
+                        continue
+                    else:
+                        break
                 try:
                     outfile = open(filename, "w")
                     outfile.write("%s"%res.text)
@@ -284,6 +295,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
                 except:
                     sys.stderr.write("%s\n"%traceback.format_exc())
                     sys.stderr.write("%sのファイルの保存に失敗しました\n"%item["parameter_name"])
+                    sys.stderr.write("file size = %s\n"%item["file_size"])
                 #sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
                 print("%s:%s"%(item["parameter_name"], filename))
                 #print("%s:%s"%(item["parameter_name"], res.text))
