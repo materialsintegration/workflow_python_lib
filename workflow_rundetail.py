@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 '''
-Node-REDからWF-API経由で指定されたワークフローを実行する実証実験用プログラム
+指定したランIDの詳細情報を取得する。
 '''
 
 import sys, os
@@ -52,6 +52,10 @@ def status_out(message=""):
 def get_rundetail(token, url, siteid, runid, with_result=False):
     '''
     ラン詳細の取得
+    @param token (string) APIトークン
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param siteid (string) サイトID。e.g. site00002
+    @param run_id (string) ランID。e.g. R000020000365545
     '''
 
     weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
@@ -144,8 +148,10 @@ def main():
     '''
 
     token = None
-    workflow_id = None
+    run_id = None
     result = False
+    siteid = None
+    url = None
     global STOP_FLAG
 
     for items in sys.argv:
@@ -165,6 +171,15 @@ def main():
             siteid = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
+
+    if token is None or run_id is None or url is None or siteid is None:
+        print("Usage")
+        print("   $ python %s run_id:Mxxxx token:yyyy misystem:URL"%(sys.argv[0]))
+        print("               run_id : Rで始まる15桁のランID")
+        print("               token  : 64文字のAPIトークン")
+        print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("              siteid  : siteで＋５桁の数字。site00002など")
+        sys.exit(1)
 
     get_rundetail(token, url, siteid, run_id, result)
 

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 '''
-Node-REDからWF-API経由で指定されたワークフローを実行する実証実験用プログラム
+指定したワークフローIDのワークフローをポート名とパラメータファイルを指定して実行する
 '''
 
 import sys, os
@@ -52,6 +52,10 @@ def status_out(message=""):
 def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
     '''
     ワークフロー実行
+    @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
+    @param token (string) APIトークン
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param input_params (list) <ポート名>:<ファイル名>のリスト。
     '''
 
     global prev_workflow_id
@@ -144,7 +148,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
             return
             
         else:
-            # らん番号の取得
+            # ラン番号の取得
             runid = res.json()["run_id"]
             #runid = "http://sipmi.org/workflow/runs/R000010000000403"
             runid = runid.split("/")[-1]
@@ -391,6 +395,16 @@ def main():
             seed = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
+
+    if token is None or workflow_id is None or url is None:
+        print("Usage")
+        print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL <port-name>:<filename for port> ..."%(sys.argv[0]))
+        print("          workflow_id : Rで始まる15桁のランID")
+        print("               token  : 64文字のAPIトークン")
+        print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("    <port-name>:<filename for port> : ポート名とそれに対応するファイル名を必要な数だけ。")
+        print("                      : 必要なポート名はworkflow_params.pyで取得する。")
+        sys.exit(1)
 
     '''
     numberの回数分WFを実行する。

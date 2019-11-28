@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 '''
-Node-REDからWF-API経由で指定されたワークフローを実行するため、パラメータを取得するプログラム
+ワークフローAPIを使用して、指定されたワークフローの入出力ポート名情報を出力する
 '''
 
 import sys, os
@@ -30,6 +30,9 @@ def status_out(message=""):
 def extract_workflow_params(workflow_id, token, url):
     '''
     ワークフロー詳細情報を取得
+    @param workflow_id (string) ワークフローID。e.g. W000020000000197
+    @param token (string) APIトークン
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
     '''
 
     retry_count = 0

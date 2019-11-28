@@ -52,6 +52,10 @@ def status_out(message=""):
 def get_runlist(token, url, siteid, workflow_id):
     '''
     ラン詳細の取得
+    @param token (string) APIトークン
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param siteid (string) サイトID。e.g. site00002
+    @param workflow_id (string) ワークフローID。e.g. W000020000000197
     '''
 
     weburl = "https://%s:50443/workflow-api/v2/runs"%url
@@ -76,6 +80,8 @@ def main():
     token = None
     workflow_id = None
     result = False
+    url = None
+    siteid = None
     global STOP_FLAG
 
     for items in sys.argv:
@@ -95,6 +101,15 @@ def main():
             siteid = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
+
+    if token is None or workflow_id is None or url is None or siteid is None:
+        print("Usage")
+        print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL siteid:sitexxxxx"%(sys.argv[0]))
+        print("          workflow_id : Mで始まる16桁のワークフローID")
+        print("               token  : 64文字のAPIトークン")
+        print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("              siteid  : siteで＋５桁の数字。site00002など")
+        sys.exit(1)
 
     ret = get_runlist(token, url, siteid, workflow_id)
     print(ret)
