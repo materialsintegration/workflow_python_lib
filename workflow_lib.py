@@ -8,6 +8,7 @@ import shutil
 import os, sys
 import datetime
 import uuid
+import signal
 from glob import glob
 
 # ソルバー起動ログ格納ディレクトリ
@@ -53,6 +54,32 @@ class MIApiCommandClass(object):
         # ここにリストを作っておく。
         self.torque_job_list = []
 
+        # signal定義（ワークフロー停止、Torquによるjob削除対応
+        signal.signal(signal.SIGINT, self.signal_handler)
+        signal.signal(signal.SIGTERM, self.signal_handler)
+        signal.signal(signal.SIGHUP, self.signal_handler)
+        signal.signal(signal.SIGQUIT, self.signal_handler)
+        signal.signal(signal.SIGILL, self.signal_handler)
+        signal.signal(signal.SIGTRAP, self.signal_handler)
+        signal.signal(signal.SIGIOT, self.signal_handler)
+        #signal.signal(signal.SIGEMT, self.signal_handler)
+        signal.signal(signal.SIGFPE, self.signal_handler)
+        signal.signal(signal.SIGBUS, self.signal_handler)
+        signal.signal(signal.SIGSEGV, self.signal_handler)
+        signal.signal(signal.SIGSYS, self.signal_handler)
+        signal.signal(signal.SIGPIPE, self.signal_handler)
+        signal.signal(signal.SIGALRM, self.signal_handler)
+
+    def signal_handler(self, signum, frame):
+        '''
+        シグナル受け取り処理
+        多くの場合、Torqu（またはMIntシステム）からの終了処理（のはず）
+        残念ながらkill -9 は受け取れないらしい
+        '''
+
+        print("%s catch end process signal(%d)"%(datetime.datetime.now(), signum), flush=True)
+        sys.exit(0)
+
     def __del__(self):
         '''
         終了処理
@@ -63,6 +90,7 @@ class MIApiCommandClass(object):
         # 独自登録のTorqueジョブがあったら、停止する。
         if len(self.torque_job_list) != 0:
             for job in self.torque_job_list:
+                print("%s deleting job(%s)"%(datetime.datetime.now(), job), flush=True)
                 p = subprocess("ssh headdev-cl qdel %s"%job, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 p.wait()
 
