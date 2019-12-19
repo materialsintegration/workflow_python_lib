@@ -49,7 +49,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def get_rundetail(token, url, siteid, runid, with_result=False):
+def get_rundetail(token, url, siteid, runid, with_result=False, debug=False):
     '''
     ラン詳細の取得
     @param token (string) APIトークン
@@ -73,10 +73,12 @@ def get_rundetail(token, url, siteid, runid, with_result=False):
         else:
             sys.stderr.write("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
-    print("%s\n"%json.dumps(retval, indent=2, ensure_ascii=False))
+    if debug is True:
+        print("%s\n"%json.dumps(retval, indent=2, ensure_ascii=False))
     uuid = retval["gpdb_url"].split("/")[-1].replace("-", "")
     dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
-    print(dirname)
+    if debug is True:
+        print(dirname)
 
     if with_result is False:
         return retval

@@ -120,7 +120,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
     while True:
         weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
         params = {"workflow_id":"%s"%workflow_id}
-        res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), "post")
+        res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post")
         
         # 実行の可否
         if res.status_code != 200 and res.status_code != 201:
@@ -230,9 +230,12 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
         else:
             #print("ラン実行ステータスが%sに変化したのを確認しました"%retval["status"])
             sys.stderr.write("%s - ラン実行ステータスが%sに変化したのを確認しました\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), retval["status"]))
+            if retval["status"] != "completed":
+                sys.stderr.write("%s - ランは正常終了しませんでした。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+                sys.exit(1)
             break
     
-        time.sleep(5)      # 問い合わせ間隔30秒
+        time.sleep(60)      # 問い合わせ間隔30秒
     #
     #print("ワークフロー実行終了")
     sys.stderr.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -248,6 +251,11 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
             sys.exit(1)
         res = nodeREDWorkflowAPI(token, weburl)
         if res.status_code != 200 and res.status_code != 201:
+            if res.status_code == 500:
+                #sys.stderr.write("%s\n"%res.text)
+                sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
+            else:
+                sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
             if retry_count == 5:
                 sys.stderr.write("%s - 結果取得失敗。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.exit(1)
@@ -255,10 +263,6 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
                 sys.stderr.write("%s - 結果取得失敗。５分後に再取得を試みます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 time.sleep(300.0)
             retry_count += 1
-            if res.status_code == 500:
-                sys.stderr.write("%s\n"%res.text)
-            else:
-                sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
             continue
         wf_tools = res.json()["url_list"][0]['workflow_tools'] 
         outputfilenames = {}

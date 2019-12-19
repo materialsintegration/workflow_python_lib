@@ -15,6 +15,9 @@
 * workflow_params.py    - ワークフローのパラメータ一覧を出力するスクリプト
 * workflow_rundetail.py - ラン詳細を得るスクリプト
 * workflow_runlist.py   - 指定されたワークフローを実行したラン番号のリストを返す。
+* pairplot.py           - タブ区切りのCSVファイルからペアプロットを作成する。
+  + Thermo-Calc実行スクリプト専用
+  + 要matplotlib、seabornパッケージ
 
 ※ 対応するpythonのバージョンは3.6以上を想定している。2.6または2.7でも動作可能かもしれないが、保証はしない。
 
@@ -289,3 +292,7 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
   ```
   内部の関数を呼ぶと詳細情報のJSONデータのみが返される。
 
+# 参考文献
+* pairplot
+  + [seaborn.pariplot](https://seaborn.pydata.org/generated/seaborn.pairplot.html#seaborn.pairplot)
+  + [Python, pandas, seabornでペアプロット図（散布図行列）を作成](https://note.nkmk.me/python-seaborn-pandas-pairplot/)

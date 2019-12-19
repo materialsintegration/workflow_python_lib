@@ -42,99 +42,104 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def get_rundetail(token, url, siteid, runid, with_result=False):
+def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0):
     '''
     入出力ファイルURL一覧の取得
+    @param token (string) APIトークン
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param siteid (string) サイトID。e.g. site00002
+    @param runid (string) ランID。e.g. R000020000365545
+    @param with_result (bool) この関数を実行時、情報を標準エラーに出力するか
     '''
-
-    # まずは詳細取得
-    weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
-    res = nodeREDWorkflowAPI(token, weburl)
-    if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
-        print("%s - 異常な終了コードを受信しました(%d)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
-        time.sleep(120)
-        sys.exit(1)
-    retval = res.json()
-    if retval["status"] == "running" or retval["status"] == "waiting" or retval["status"] == "paused":
-        pass
-    elif retval["status"] == "abend" or retval["status"] == "canceled":
-        if retval["status"] == "abend":
-            sys.stderr.write("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-        else:
-            sys.stderr.write("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
     # 結果ファイルの取得
     weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
-    if os.path.exists("/tmp/%s"%runid) is True:
-        shutil.rmtree("/tmp/%s"%runid)
-    os.mkdir("/tmp/%s"%runid)
     retry_count = 0
     while True:
         if STOP_FLAG is True:
             return False, ""
-        res = nodeREDWorkflowAPI(token, weburl)
+        res = nodeREDWorkflowAPI(token, weburl, error_print=with_result)
         if res.status_code != 200 and res.status_code != 201:
-            if retry_count == 5:
-                sys.stderr.write("%s - 結果取得失敗。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            if res.status_code == 500:
+                #sys.stderr.write("%s\n"%res.text)
+                try:
+                    sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
+                except:
+                    sys.stderr.write("%s\n"%json.text)
+            elif res.status_code == 503:
+                if res.json()["errors"][0]["code"] == "0011":
+                    continue
+            elif res.status_code == 404:
+                if res.json()["errors"][0]["code"] == "0007":
+                    return False, ""
+            else:
+                try:
+                    sys.stderr.write("code:%d\n%s\n"%(res.status_code, json.dumps(res.json(), indent=2, ensure_ascii=False)))
+                except:
+                    sys.stderr.write("code:%d\n%s\n"%(res.status_code, res.text))
+            if retry_count == 1:
+                sys.stderr.write("%s -- %03d : 結果取得失敗。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num))
                 return False, ""
             else:
-                sys.stderr.write("%s - 結果取得失敗。５分後に再取得を試みます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-                time.sleep(300.0)
+                sys.stderr.write("%s -- %03d : 結果取得失敗。10秒後に再取得を試みます。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num))
+                time.sleep(10.0)
             retry_count += 1
-            if res.status_code == 500:
-                sys.stderr.write("%s\n"%res.text)
-            else:
-                sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
-            return False, ""
-        wf_tools = res.json()["url_list"][0]['workflow_tools'] 
-        outputfilenames = {}
-        if len(wf_tools) == 0:
-            sys.stderr.write("%s - 結果を取得できなかった？\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-            #sys.exit(1)
-            return ""
-        get_file = False
-        for tool in wf_tools:
-            tool_outputs = tool["tool_outputs"]
-            if len(tool_outputs) == 0:
-                if retry_count == 5:
-                    sys.stderr.write('tool["tool_outputs"] が空？取得できませんでした。終了します。\n')
-                    return False, ""
-                else:
-                    sys.stderr.write('tool["tool_outputs"] が空？５秒後に再取得します。\n')
-                    time.sleep(5.0)
-                    retry_count += 1
-                    break
-            for item in tool_outputs:
-                filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
-                outputfilenames[item["parameter_name"]] = filename
-                #print("outputfile:%s"%item["file_path"])
-                #sys.stderr.write("file size = %s\n"%item["file_size"])
-                weburl = item["file_path"]
-                sys.stderr.write('getting output file %s for tool(%s)...'%(item['file_path'].split("/")[-1], item['parameter_name']))
-                res = nodeREDWorkflowAPI(token, weburl, method="get_noheader")
-                sys.stderr.write('\nreturn status(%s)\n'%res.status_code)
-                try:
-                    outfile = open(filename, "w")
-                    outfile.write("%s"%res.text)
-                    outfile.close()
-                except:
-                    sys.stderr.write("%s\n"%traceback.format_exc())
-                    sys.stderr.write("%sのファイルの保存に失敗しました\n"%item["parameter_name"])
-                    sys.stderr.write("file size = %s\n"%item["file_size"])
-                #sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
-                print("%s:%s"%(item["parameter_name"], filename))
-                #print("%s:%s"%(item["parameter_name"], res.text))
-                get_file = True
-         
-        if get_file is True:
+            continue
+        else:
             break
+
+    loop_num = 0
+    io_dict = {}
+    io_dict[runid] = {}
+    for url_list in res.json()["url_list"]:
+
+        #sys.stderr.write("%s\n"%json.dumps(url_list, indent=2, ensure_ascii=False))
+        if with_result is True:
+            sys.stderr.write("run id(%s) の loop番号 %d 番目のIOポート URLの抽出\n"%(runid, loop_num))
+        io_dict[runid]["loop"] = loop_num
+        outputfilenames = {}
+        if len(url_list) == 0:
+            sys.stderr.write("%s -- %03d : 結果を取得できなかった？\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num))
+            #sys.exit(1)
+            return False, ""
+
+        # 入力ポートの処理
+        tool_inputs = url_list["workflow_inputs"]
+        if len(tool_inputs) == 0:
+            sys.stderr.write('url_list["workflow_tools"]["tool_inputs"] が空？取得できませんでした。次を処理します。\n')
+            continue
+        if with_result is True:
+            sys.stderr.write("response contentes for input for workflow\n")
+            sys.stderr.write("%s\n"%json.dumps(tool_inputs, indent=2, ensure_ascii=False))
+        for item in tool_inputs:
+            param_name = item["parameter_name"].split("_")[0]
+            #io_dict[runid][item["parameter_name"]] = [item["file_path"], item["file_size"]]
+            io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+
+        # 出力ポートの処理
+        tool_outputs = url_list["workflow_outputs"]
+        if len(tool_outputs) == 0:
+            sys.stderr.write('url_list["workflow_tools"]["tool_outputs"] が空？取得できませんでした。次を処理します。\n')
+            continue
+        if with_result is True:
+            sys.stderr.write("response contentes for output for workflow\n")
+            sys.stderr.write("%s\n"%json.dumps(tool_outputs, indent=2, ensure_ascii=False))
+        for item in tool_outputs:
+            param_name = item["parameter_name"].split("_")[0]
+            io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+     
+        loop_num += 1
+
+    return True, io_dict
 
 def main():
     '''
     '''
 
     token = None
-    workflow_id = None
+    run_id = None
+    url = None
+    siteid = None
     result = False
     global STOP_FLAG
 
@@ -150,13 +155,26 @@ def main():
         elif items[0] == "misystem":            # 環境指定(開発？運用？NIMS？東大？)
             url = items[1]
         elif items[0] == "result":              # 結果取得(True/False)
-            result = items[1]
+            if items[1] == "true":
+                result = True
+            else:
+                result = False
         elif items[0] == "siteid":              # site id(e.g. site00002)
             siteid = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
-    get_rundetail(token, url, siteid, run_id, result)
+    if token is None or run_id is None or url is None or siteid is None:
+        print("Usage")
+        print("   $ python %s run_id:Rxxxx token:yyyy misystem:URL"%(sys.argv[0]))
+        print("               run_id : Rで始まる15桁のランID")
+        print("               token  : 64文字のAPIトークン")
+        print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("              siteid  : siteで＋５桁の数字。site00002など")
+        sys.exit(1)
+
+    ret, ret_dict = get_runiofile(token, url, siteid, run_id, result)
+    sys.stderr.write("%s\n"%json.dumps(ret_dict, indent=2, ensure_ascii=False))
 
 if __name__ == '__main__':
     main()

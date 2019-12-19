@@ -69,7 +69,13 @@ def get_runlist(token, url, siteid, workflow_id):
     run_lists = []
     for item in runs:
         if item["workflow_id"].split("/")[-1] == workflow_id:
-            run_lists.append(item["run_id"].split("/")[-1])
+            if ("description" in item) is True:
+                description = item["description"]
+            else:
+                description = ""
+            run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description}
+            #run_lists.append(item["run_id"].split("/")[-1])
+            run_lists.append(run_info)
 
     return run_lists
 

@@ -51,6 +51,8 @@ def random_with_num_with_lhypercube(random_type, random_val1, random_val2, rando
             min_value = random_val1 * (1.0 - random_val2)
             max_value = random_val1 * (1.0 + random_val2)
             value = random.uniform(min_value, max_value)
+        elif random_type == "uniform_minmax":
+            value = random.uniform(random_val1, random_val2)
         elif random_type == "gauss": 
             value = random.gauss(random_val1, random_val1 * random_val2)
         elif random_type == "gamma": 
@@ -60,7 +62,7 @@ def random_with_num_with_lhypercube(random_type, random_val1, random_val2, rando
         elif random_type == "normal": 
             value = random.normalvariate(random_val1, random_val1 * random_val2)
         else:
-            value = random.random()
+            value = 0.0
         if disporlist is True:
             print("%f"%value)
         else:
@@ -89,6 +91,8 @@ def random_with_num(random_type, random_val1, random_val2, random_num, random_se
             min_value = random_val1 * (1.0 - random_val2)
             max_value = random_val1 * (1.0 + random_val2)
             value = random.uniform(min_value, max_value)
+        elif random_type == "uniform_minmax":
+            value = random.uniform(random_val1, random_val2)
         elif random_type == "gauss": 
             value = random.gauss(random_val1, random_val1 * random_val2)
         elif random_type == "gamma": 
