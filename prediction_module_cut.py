@@ -83,8 +83,12 @@ for prediction_id in candidate_modules:
             rev = v3
     target_modules.append(target_module)
 
-root = ET.Element("modules", {"xmlns":"http://www.example.com/predictionModuleSchema", "xmlns:xsi":"http://www.w3.org/2001/XMLSchema-instance", "xmlns:dc":"http://purl.org/dc/elements/1.1/", "xsi:schemaLocation":"http://www.example.com/predictionModuleSchema predictionModuleSchema.xsd"})
+root = ET.Element("modules", {"xmlns":"http://www.example.com/predictionModuleSchema", "xmlns:xsi":"http://www.w3.org/2001/XMLSchema-instance", "xsi:schemaLocation":"http://www.example.com/predictionModuleSchema predictionModuleSchema.xsd"})
 for element in target_modules:
+    sube = element.find(".//dc:identifier", {'dc': 'http://purl.org/dc/elements/1.1/'})
+    element.remove(sube)
+    sube = element.find(".//predictionModuleSchema:version", {"predictionModuleSchema": "http://www.example.com/predictionModuleSchema"})
+    sube.text = "1.0.0"
     root.append(element)
 
 new_tree = ET.ElementTree(element=root)
