@@ -352,6 +352,8 @@ class MIApiCommandClass(object):
         print('%s host(%s) / user(%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), subprocess.getoutput('hostname'), subprocess.getoutput('whoami')), flush=True)
         print('%s ulimit -s(%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), subprocess.getoutput('ulimit -s')), flush=True)
         print('%s solver execute log (%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), SOLVER_LOGFILE), flush=True)
+        args = " ".join(sys.argv)
+        print('%s args : %s'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), args))
         self.solver_logfile = open(SOLVER_LOGFILE, "a")
 
     def ExecSolver(self, cmd=None, not_errors=None, do_postprocess=True):
