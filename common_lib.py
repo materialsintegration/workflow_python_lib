@@ -11,7 +11,20 @@ import json
 import datetime
 import base64
 
-def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", error_print=True):
+class timeout_object(object):
+    '''
+    タイムアウト時にrequestsのレスポンスオブジェクトと似たような振る舞いをするオブジェクト
+    '''
+
+    def __init__(self):
+        '''
+        コンストラクタ
+
+        '''
+        self.status_code = None
+        self.text = "Timeout"
+
+def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
     '''
     API呼び出し
     '''
@@ -26,13 +39,41 @@ def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, meth
     session.trust_env = False
 
     if method == "get":
-        res = session.get(weburl, data=invdata, headers=headers)
+        try:
+            res = session.get(weburl, data=invdata, headers=headers, timeout=timeout)
+        except requests.ConnectTimeout:
+            res = timeout_object()
+            res.text = "サーバーに接続できませんでした（timeout = %s秒)"%timeout[0]
+        except requests.ReadTimeout:
+            res = timeout_object()
+            res.text = "サーバーから応答がありませんでした（timeout = %s秒)"%timeout[1]
     elif method == "get_noheader":
-        res = session.get(weburl, data=invdata)
+        try:
+            res = session.get(weburl, data=invdata, timeout=timeout)
+        except requests.ConnectTimeout:
+            res = timeout_object()
+            res.text = "サーバーに接続できませんでした（timeout = %s秒)"%timeout[0]
+        except requests.ReadTimeout:
+            res = timeout_object()
+            res.text = "サーバーから応答がありませんでした（timeout = %s秒)"%timeout[1]
     elif method == "post":
-        res = session.post(weburl, data=invdata, headers=headers, params=params)
+        try:
+            res = session.post(weburl, data=invdata, headers=headers, params=params, timeout=timeout)
+        except requests.ConnectTimeout:
+            res = timeout_object()
+            res.text = "サーバーに接続できませんでした（timeout = %s秒)"%timeout[0]
+        except requests.ReadTimeout:
+            res = timeout_object()
+            res.text = "サーバーから応答がありませんでした（timeout = %s秒)"%timeout[1]
     elif method == "put":
-        res = session.put(weburl, data=invdata, headers=headers, params=params, json=json)
+        try:
+            res = session.put(weburl, data=invdata, headers=headers, params=params, json=json, timeout=timeout)
+        except requests.ConnectTimeout:
+            res = timeout_object()
+            res.text = "サーバーに接続できませんでした（timeout = %s秒)"%timeout[0]
+        except requests.ReadTimeout:
+            res = timeout_object()
+            res.text = "サーバーから応答がありませんでした（timeout = %s秒)"%timeout[1]
     
     if res.status_code != 200 and res.status_code != 201:
         if error_print is True:

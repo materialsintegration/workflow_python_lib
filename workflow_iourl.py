@@ -42,7 +42,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0):
+def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0)):
     '''
     入出力ファイルURL一覧の取得
     @param token (string) APIトークン
@@ -58,7 +58,9 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0):
     while True:
         if STOP_FLAG is True:
             return False, ""
-        res = nodeREDWorkflowAPI(token, weburl, error_print=with_result)
+        if type(timeout) == list:
+            timeout = tuple(timeout)
+        res = nodeREDWorkflowAPI(token, weburl, error_print=with_result, timeout=timeout)
         if res.status_code != 200 and res.status_code != 201:
             if res.status_code == 500:
                 #sys.stderr.write("%s\n"%res.text)
@@ -72,16 +74,19 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0):
             elif res.status_code == 404:
                 if res.json()["errors"][0]["code"] == "0007":
                     return False, ""
+            elif res.status_code is None:
+                sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗(%s)。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid, res.text))
+                return False, "%s -- %03d : RunID(%s) 結果取得失敗(%s)。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid, res.text)
             else:
                 try:
                     sys.stderr.write("code:%d\n%s\n"%(res.status_code, json.dumps(res.json(), indent=2, ensure_ascii=False)))
                 except:
                     sys.stderr.write("code:%d\n%s\n"%(res.status_code, res.text))
             if retry_count == 1:
-                sys.stderr.write("%s -- %03d : 結果取得失敗。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num))
-                return False, ""
+                sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid))
+                return False, "%s -- %03d : RunID(%s) 結果取得失敗。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid)
             else:
-                sys.stderr.write("%s -- %03d : 結果取得失敗。10秒後に再取得を試みます。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num))
+                sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗。10秒後に再取得を試みます。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid))
                 time.sleep(10.0)
             retry_count += 1
             continue
@@ -125,7 +130,8 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0):
             sys.stderr.write("response contentes for output for workflow\n")
             sys.stderr.write("%s\n"%json.dumps(tool_outputs, indent=2, ensure_ascii=False))
         for item in tool_outputs:
-            param_name = item["parameter_name"].split("_")[0]
+            #param_name = item["parameter_name"].split("_")[0]
+            param_name = item["parameter_name"]
             io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
      
         loop_num += 1
@@ -141,6 +147,7 @@ def main():
     url = None
     siteid = None
     result = False
+    timeout = [10, 30]
     global STOP_FLAG
 
     for items in sys.argv:
@@ -161,6 +168,11 @@ def main():
                 result = False
         elif items[0] == "siteid":              # site id(e.g. site00002)
             siteid = items[1]
+        elif items[0] == "timeout":             # タイムアウト
+            try:
+                timeout[1] = int(items[1])
+            except:
+                pass
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -171,9 +183,11 @@ def main():
         print("               token  : 64文字のAPIトークン")
         print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
         print("              siteid  : siteで＋５桁の数字。site00002など")
+        print("             timeout  : 読み込みタイムアウトを設定する。秒。接続確立時ではない。")
         sys.exit(1)
 
-    ret, ret_dict = get_runiofile(token, url, siteid, run_id, result)
+    timeout = tuple(timeout)
+    ret, ret_dict = get_runiofile(token, url, siteid, run_id, result, timeout=timeout)
     sys.stderr.write("%s\n"%json.dumps(ret_dict, indent=2, ensure_ascii=False))
 
 if __name__ == '__main__':

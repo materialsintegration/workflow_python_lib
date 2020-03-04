@@ -14,6 +14,7 @@ import random
 import subprocess
 import signal
 import traceback
+import mimetypes
 
 try:
     import mysql.connector
@@ -49,13 +50,15 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
+def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002"):
     '''
     ワークフロー実行
     @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
     @param token (string) APIトークン
     @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
     @param input_params (list) <ポート名>:<ファイル名>のリスト。
+    @param number (string) 文字指定の連続実行数。-1の場合は1回で終了。
+    @param timeout (int) 実行中のままこの秒数が過ぎた場合はキャンセルを実行して終了。データ取得はしない。
     '''
 
     global prev_workflow_id
@@ -85,6 +88,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
     run_params["description"] += "parameter\n"
     for item in input_params:
         if input_params[item] == "initial_setting.dat":
+            continue
+        if mimetypes.guess_type(input_params[item])[1] != "None":
             continue
         run_params["description"] += "%-20s:"%item
         infile = open(input_params[item])
@@ -120,15 +125,17 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
     while True:
         weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
         params = {"workflow_id":"%s"%workflow_id}
-        res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post")
+        res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(10.0, 300.0), error_print=False)
         
         # 実行の可否
         if res.status_code != 200 and res.status_code != 201:
-            #print(res.text)
-            #print("%s - False 実行できませんでした。(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
-            sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
-            #status_out("False 実行できませんでした。(%s)"%res.text)
-            #sys.exit(1)
+            if res.status_code is None:         # タイムアウトだった
+                sys.stderr.write("%s - 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
+            elif res.status_code == 400:
+                sys.stderr.write("%s - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
+                return
+            else:
+                sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
             if number == "-1":
                 if retry_count == 5:
                     sys.stderr.write("%s - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -154,6 +161,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
             runid = runid.split("/")[-1]
             #print("%s - ワークフロー実行中（%s）"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             sys.stderr.write("%s - ワークフロー実行中（%s）\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
+            sys.stderr.flush()
             url_runid = int(runid[1:])
             sys.stderr.write("%s - ラン詳細ページ  https://%s/workflow/runs/%s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), url, url_runid))
             sys.stderr.flush()
@@ -161,6 +169,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
             outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             for item in input_params:
                 if input_params[item] == "initial_setting.dat":
+                    continue
+                if mimetypes.guess_type(input_params[item])[1] != "None":
                     continue
     
                 #print("param file name = %s"%input_params[item])
@@ -176,22 +186,47 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
             break
     
     # ラン終了待機
+    start_time = None
+    working_dir = None
     weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
     #print("ワークフロー実行中...")
     while True:
         res = nodeREDWorkflowAPI(token, weburl)
         if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
-            print("%s - 異常な終了コードを受信しました(%d)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+            if res.status_code is None:         # タイムアウトだった
+                sys.stderr.write("%s - タイムアウトしました。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
+                sys.stderr.flush()
+            else:
+                sys.stderr.write("%s - 異常な終了コードを受信しました(%d)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+                sys.stderr.flush()
             time.sleep(120)
             continue
         retval = res.json()
         if retval["status"] == "running" or retval["status"] == "waiting" or retval["status"] == "paused":
+            # タイムアウト判定用の開始時間(wating=TorqueによるQueue待ち時間を除くため)
+            if start_time is None and retval["status"] == "running":
+                start_time = datetime.datetime.now()
+            # タイムアウト判定
+            if timeout is not None and retval["status"] == "running":
+                estimated = datetime.datetime.now() - start_time
+                if estimated > timeout: 
+                    sys.stderr.write("%s - 実行中のままタイムアウト時間を越えました。(%d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+                    sys.stderr.flush()
+                    sys.exit(1)
             pass
+            if working_dir is None:
+                uuid = retval["gpdb_url"].split("/")[-1].replace("-", "")
+                dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
+                sys.stderr.write("%s - 実行ディレクトリ %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), dirname))
+                sys.stderr.flush()
+                working_dir = dirname
         elif retval["status"] == "abend" or retval["status"] == "canceled":
             if retval["status"] == "abend":
                 sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.flush()
             else:
                 sys.stderr.write("%s - ランがキャンセルされました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.flush()
             tool_names = []
             for item in miwf_contents:
                 if ("category" in item) is True:
@@ -230,12 +265,14 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
         else:
             #print("ラン実行ステータスが%sに変化したのを確認しました"%retval["status"])
             sys.stderr.write("%s - ラン実行ステータスが%sに変化したのを確認しました\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), retval["status"]))
+            sys.stderr.flush()
             if retval["status"] != "completed":
                 sys.stderr.write("%s - ランは正常終了しませんでした。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+                sys.stderr.flush()
                 sys.exit(1)
             break
     
-        time.sleep(60)      # 問い合わせ間隔30秒
+        time.sleep(10)      # 問い合わせ間隔30秒
     #
     #print("ワークフロー実行終了")
     sys.stderr.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -251,16 +288,21 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
             sys.exit(1)
         res = nodeREDWorkflowAPI(token, weburl)
         if res.status_code != 200 and res.status_code != 201:
-            if res.status_code == 500:
+            if res.status_code is None:         # タイムアウトだった
+                sys.stderr.write("%s - タイムアウトしました。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
+                sys.stderr.flush()
+            elif res.status_code == 500:
                 #sys.stderr.write("%s\n"%res.text)
                 sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
             else:
                 sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
             if retry_count == 5:
                 sys.stderr.write("%s - 結果取得失敗。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.flush()
                 sys.exit(1)
             else:
                 sys.stderr.write("%s - 結果取得失敗。５分後に再取得を試みます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.flush()
                 time.sleep(300.0)
             retry_count += 1
             continue
@@ -268,6 +310,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
         outputfilenames = {}
         if len(wf_tools) == 0:
             sys.stderr.write("%s - 結果を取得できなかった？\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            sys.stderr.flush()
             #sys.exit(1)
             continue
         get_file = False
@@ -276,9 +319,11 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
             if len(tool_outputs) == 0:
                 if retry_count == 5:
                     sys.stderr.write('tool["tool_outputs"] が空？取得できませんでした。終了します。\n')
+                    sys.stderr.flush()
                     sys.exit(1)
                 else:
                     sys.stderr.write('tool["tool_outputs"] が空？５秒後に再取得します。\n')
+                    sys.stderr.flush()
                     time.sleep(5.0)
                     retry_count += 1
                     break
@@ -288,22 +333,40 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", seed=None):
                 #print("outputfile:%s"%item["file_path"])
                 #sys.stderr.write("file size = %s\n"%item["file_size"])
                 weburl = item["file_path"]
+                # ファイルサイズで取得するしないを判定する。基準は１Gバイト
+                filesize = int(item["file_size"])
+                if filesize > (1024 * 1024 * 1024):
+                    sys.stderr.write("%sのファイルのファイルサイズが１Ｇバイトを越えるので、取得しません。\n"%item["parameter_name"])
+                    sys.stderr.write("file size = %s\n"%item["file_size"])
+                    sys.stderr.write("URL は %s\n"%weburl)
+                    sys.stderr.flush()
+                    continue
                 while True:
-                    res = nodeREDWorkflowAPI(token, weburl, method="get_noheader")
+                    try:
+                        res = nodeREDWorkflowAPI(token, weburl, method="get_noheader")
+                    except MemoryError:
+                        sys.stderr.write("%s\n"%traceback.format_exc())
+                        sys.stderr.write("%sのファイルの取得に失敗しました(MemoryError)\n"%item["parameter_name"])
+                        sys.stderr.write("file size = %s\n"%item["file_size"])
+                        sys.stderr.flush()
+                        break
                     if res.status_code == 500:
                         sys.stderr.write("%s - 結果を取得できませんでした。５分後に再取得します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                        sys.stderr.flush()
                         time.sleep(300)
                         continue
                     else:
                         break
                 try:
-                    outfile = open(filename, "w")
-                    outfile.write("%s"%res.text)
+                    outfile = open(filename, "wb")
+                    #outfile.write("%s"%res.text)
+                    outfile.write(res.content)
                     outfile.close()
                 except:
                     sys.stderr.write("%s\n"%traceback.format_exc())
                     sys.stderr.write("%sのファイルの保存に失敗しました\n"%item["parameter_name"])
                     sys.stderr.write("file size = %s\n"%item["file_size"])
+                    sys.stderr.flush()
                 #sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
                 print("%s:%s"%(item["parameter_name"], filename))
                 #print("%s:%s"%(item["parameter_name"], res.text))
@@ -379,7 +442,9 @@ def main():
     input_params = {}
     workflow_id = None
     seed = None
-    number = "0"
+    number = "-1"
+    timeout = None
+    siteid = "site00002"
     global STOP_FLAG
 
     for items in sys.argv:
@@ -397,17 +462,25 @@ def main():
             number = items[1]
         elif items[0] == "seed":                # random種の指定
             seed = items[1]
+        elif items[0] == "timeout":             # タイムアウト値
+            try:
+                timeout = int(items[1])
+            except:
+                timeout = None
+        elif items[0] == "siteid":              # site ID
+            siteid = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
     if token is None or workflow_id is None or url is None:
         print("Usage")
         print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL <port-name>:<filename for port> ..."%(sys.argv[0]))
-        print("          workflow_id : Rで始まる15桁のランID")
-        print("               token  : 64文字のAPIトークン")
-        print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("          workflow_id : 必須 Rで始まる15桁のランID")
+        print("               token  : 必須 64文字のAPIトークン")
+        print("             misystem : 必須 dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
         print("    <port-name>:<filename for port> : ポート名とそれに対応するファイル名を必要な数だけ。")
         print("                      : 必要なポート名はworkflow_params.pyで取得する。")
+        print("              timeout : 連続実行でない場合に、実行中のままこの時間（秒指定）を越えた場合に、キャンセルして終了する。")
         sys.exit(1)
 
     '''
@@ -447,7 +520,7 @@ def main():
             else:
                 wait_running_number(url, token, number)
             print("\n------ %06s -------"%i)
-        workflow_run(workflow_id, token, url, input_params, number, seed)
+        workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid)
         time.sleep(1.0)
         if number == "-1":
             break

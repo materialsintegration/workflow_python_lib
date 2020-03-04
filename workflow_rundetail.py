@@ -154,6 +154,7 @@ def main():
     result = False
     siteid = None
     url = None
+    debug = False
     global STOP_FLAG
 
     for items in sys.argv:
@@ -171,6 +172,8 @@ def main():
             result = items[1]
         elif items[0] == "siteid":              # site id(e.g. site00002)
             siteid = items[1]
+        elif items[0] == "debug":
+            debug = True
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -183,7 +186,7 @@ def main():
         print("              siteid  : siteで＋５桁の数字。site00002など")
         sys.exit(1)
 
-    get_rundetail(token, url, siteid, run_id, result)
+    get_rundetail(token, url, siteid, run_id, result, debug)
 
 if __name__ == '__main__':
     main()
