@@ -202,6 +202,12 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             time.sleep(120)
             continue
         retval = res.json()
+        if working_dir is None and ("gpdb_url" in retval) is True:
+            uuid = retval["gpdb_url"].split("/")[-1].replace("-", "")
+            dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
+            sys.stderr.write("%s - 実行ディレクトリ %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), dirname))
+            sys.stderr.flush()
+            working_dir = dirname
         if retval["status"] == "running" or retval["status"] == "waiting" or retval["status"] == "paused":
             # タイムアウト判定用の開始時間(wating=TorqueによるQueue待ち時間を除くため)
             if start_time is None and retval["status"] == "running":
@@ -214,12 +220,6 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                     sys.stderr.flush()
                     sys.exit(1)
             pass
-            if working_dir is None:
-                uuid = retval["gpdb_url"].split("/")[-1].replace("-", "")
-                dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
-                sys.stderr.write("%s - 実行ディレクトリ %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), dirname))
-                sys.stderr.flush()
-                working_dir = dirname
         elif retval["status"] == "abend" or retval["status"] == "canceled":
             if retval["status"] == "abend":
                 sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
