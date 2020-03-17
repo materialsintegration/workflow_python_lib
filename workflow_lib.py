@@ -1,6 +1,7 @@
 #!/usr/bin/python3.6
 # -*- coding: utf-8 -*-
 
+import atexit
 from miapi.system.command_line_interpreter import CommandLineInterpreter
 from miapi.system import runinfo
 import subprocess
@@ -70,6 +71,7 @@ class MIApiCommandClass(object):
         signal.signal(signal.SIGSYS, self.signal_handler)
         signal.signal(signal.SIGPIPE, self.signal_handler)
         signal.signal(signal.SIGALRM, self.signal_handler)
+        atexit.register(self.class_exit_function)
 
     def logwrite(self, mess, output_dir):
         '''
@@ -106,7 +108,8 @@ class MIApiCommandClass(object):
         sys.stderr.flush()
         sys.exit(0)
 
-    def __del__(self):
+    #def __del__(self):
+    def class_exit_function(self):
         '''
         終了処理
         '''
@@ -336,13 +339,14 @@ class MIApiCommandClass(object):
     
                 if filename == "value":
                     filename = item
-                input_dir = os.path.dirname(self.input_realnames[filename])
+                input_dirs = os.path.dirname(self.input_realnames[filename])
                 real_name = os.path.basename(self.input_realnames[filename])
                 current_dir = os.getcwd()
-                if input_dir != "":
-                    if os.path.exists(input_dir) is False:
-                        os.mkdir(input_dir)
-                    os.chdir(input_dir)
+                for input_dir in input_dirs.split("/"):
+                    if input_dir != "":
+                        if os.path.exists(input_dir) is False:
+                            os.mkdir(input_dir)
+                        os.chdir(input_dir)
                 #os.symlink(self.input_filenames[item], self.input_realnames[filename])
                 print("create cymlink from %s -> %s"%(filename, real_name))
                 os.symlink(self.input_filenames[item], real_name)
@@ -352,8 +356,8 @@ class MIApiCommandClass(object):
         print('%s host(%s) / user(%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), subprocess.getoutput('hostname'), subprocess.getoutput('whoami')), flush=True)
         print('%s ulimit -s(%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), subprocess.getoutput('ulimit -s')), flush=True)
         print('%s solver execute log (%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), SOLVER_LOGFILE), flush=True)
-        args = " ".join(sys.argv)
-        print('%s args : %s'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), args))
+        #args = " ".join(sys.argv)
+        #print('%s args : %s'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), args))
         self.solver_logfile = open(SOLVER_LOGFILE, "a")
 
     def ExecSolver(self, cmd=None, not_errors=None, do_postprocess=True):
