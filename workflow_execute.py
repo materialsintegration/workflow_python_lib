@@ -23,6 +23,7 @@ except:
     has_mysql = False
 from common_lib import *
 from workflow_params import *
+from workflow_rundetail import *
 
 prev_workflow_id = None
 input_ports_prev = None
@@ -81,6 +82,12 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     prev_workflow_id = workflow_id
     input_ports_prev = input_ports
     output_ports_prev = output_ports
+    tool_names = []
+    for item in miwf_contents:
+        if ("category" in item) is True:
+            if item["category"] == "module":
+                if ("name" in item) is True:
+                    tool_names.append(item["name"])
 
     # Runパラメータの構築
     run_params = {}
@@ -137,7 +144,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             else:
                 sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
             if number == "-1":
-                if retry_count == 5:
+                if retry_count == 1:
                     sys.stderr.write("%s - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                     return
                 else:
@@ -157,6 +164,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
         else:
             # ラン番号の取得
             runid = res.json()["run_id"]
+            #print("%s"%json.dumps(res.json(), indent=2, ensure_ascii=False))
             #runid = "http://sipmi.org/workflow/runs/R000010000000403"
             runid = runid.split("/")[-1]
             #print("%s - ワークフロー実行中（%s）"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
@@ -227,40 +235,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             else:
                 sys.stderr.write("%s - ランがキャンセルされました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-            tool_names = []
-            for item in miwf_contents:
-                if ("category" in item) is True:
-                    if item["category"] == "module":
-                        if ("name" in item) is True:
-                            tool_names.append(item["name"])
 
-            for tool_name in tool_names:
-                #tool_name = "%s_%s"%(workflow_id, tool_name)
-                # ツール標準出力の取得
-                weburl = "https://%s:50443/workflow-api/v2/runs/%s/tools?tool=%s"%(url, runid, tool_name)
-                sys.stderr.write("%s\n"%weburl)
-                res = nodeREDWorkflowAPI(token, weburl)
-                if res.text != "":
-                    filename = "%s_stdout.log"%tool_name
-                    outfile = open(filename, "w")
-                    outfile.write("stdout contents of tool name %s --------------------\n"%tool_name)
-                    #sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
-                    outfile.write("%s\n"%res.text)
-                    #outfile.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
-                    outfile.close()
-                    sys.stderr.write("writing stdout info for tool(%s) to %s\n"%(tool_name, filename))
-                else:
-                    sys.stderr.write("cannot get stdout contents of tool name %s\n"%tool_name)
-            # ラン詳細の取得
-            weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
-            #sys.stderr.write("%s\n"%weburl)
-            res = nodeREDWorkflowAPI(token, weburl)
-            outfile = open("run_%s_detail.log"%runid, "w")
-            outfile.write("detail for run(%s) --------------------\n"%runid)
-            outfile.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
-            outfile.close()
-            sys.stderr.write("wrote run detail info to run_%s_detail.log\n"%runid)
-            
+            get_rundetail(token, url, siteid, runid, False, tool_names, False)
             sys.exit(1)
         else:
             #print("ラン実行ステータスが%sに変化したのを確認しました"%retval["status"])
@@ -270,9 +246,10 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 sys.stderr.write("%s - ランは正常終了しませんでした。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 sys.stderr.flush()
                 sys.exit(1)
+                get_rundetail(token, url, siteid, runid, False, tool_names, False)
             break
     
-        time.sleep(10)      # 問い合わせ間隔30秒
+        time.sleep(5)      # 問い合わせ間隔30秒
     #
     #print("ワークフロー実行終了")
     sys.stderr.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -299,6 +276,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if retry_count == 5:
                 sys.stderr.write("%s - 結果取得失敗。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
+                get_rundetail(token, url, siteid, runid, False, tool_names, False)
                 sys.exit(1)
             else:
                 sys.stderr.write("%s - 結果取得失敗。５分後に再取得を試みます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -314,19 +292,30 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             #sys.exit(1)
             continue
         get_file = False
+        # tool_outputsが取得できたかどうか
+        all_null = True
         for tool in wf_tools:
             tool_outputs = tool["tool_outputs"]
             if len(tool_outputs) == 0:
-                if retry_count == 5:
-                    sys.stderr.write('tool["tool_outputs"] が空？取得できませんでした。終了します。\n')
-                    sys.stderr.flush()
-                    sys.exit(1)
-                else:
-                    sys.stderr.write('tool["tool_outputs"] が空？５秒後に再取得します。\n')
-                    sys.stderr.flush()
-                    time.sleep(5.0)
-                    retry_count += 1
-                    break
+                pass
+            else:
+                all_null = False
+
+        if all_null is True:
+            if retry_count == 5:
+                sys.stderr.write('tool["tool_outputs"] が空？取得できませんでした。終了します。\n')
+                sys.stderr.flush()
+                get_rundetail(token, url, siteid, runid, False, tool_names, False)
+                sys.exit(1)
+            else:
+                sys.stderr.write('モジュール名(%s)のtool["tool_outputs"] が空？５秒後に再取得します。\n'%tool["tool_name"])
+                sys.stderr.flush()
+                time.sleep(5.0)
+                retry_count += 1
+            continue
+        
+        for tool in wf_tools:
+            tool_outputs = tool["tool_outputs"]
             for item in tool_outputs:
                 filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
                 outputfilenames[item["parameter_name"]] = filename
@@ -367,8 +356,9 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                     sys.stderr.write("%sのファイルの保存に失敗しました\n"%item["parameter_name"])
                     sys.stderr.write("file size = %s\n"%item["file_size"])
                     sys.stderr.flush()
-                #sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
-                print("%s:%s"%(item["parameter_name"], filename))
+                sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
+                sys.stderr.flush()
+                #print("%s:%s"%(item["parameter_name"], filename))
                 #print("%s:%s"%(item["parameter_name"], res.text))
                 get_file = True
          
