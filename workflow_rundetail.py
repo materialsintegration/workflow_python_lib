@@ -49,13 +49,15 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def get_rundetail(token, url, siteid, runid, with_result=False, debug=False):
+def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None, debug=False):
     '''
     ラン詳細の取得
     @param token (string) APIトークン
     @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
     @param siteid (string) サイトID。e.g. site00002
     @param run_id (string) ランID。e.g. R000020000365545
+    @param with_result (bool) 各ツールの出力ポートの取得（True)
+    @param tool_names (list) リストされたツールのstdout取得
     '''
 
     weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
@@ -79,6 +81,34 @@ def get_rundetail(token, url, siteid, runid, with_result=False, debug=False):
     dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
     if debug is True:
         print(dirname)
+
+    if len(tool_names) != 0:
+        for tool_name in tool_names:
+            #tool_name = "%s_%s"%(workflow_id, tool_name)
+            # ツール標準出力の取得
+            weburl = "https://%s:50443/workflow-api/v2/runs/%s/tools?tool=%s"%(url, runid, tool_name)
+            sys.stderr.write("%s\n"%weburl)
+            res = nodeREDWorkflowAPI(token, weburl)
+            if res.text != "":
+                filename = "%s_stdout.log"%tool_name
+                outfile = open(filename, "w")
+                outfile.write("stdout contents of tool name %s --------------------\n"%tool_name)
+                #sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
+                outfile.write("%s\n"%res.text)
+                #outfile.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
+                outfile.close()
+                sys.stderr.write("writing stdout info for tool(%s) to %s\n"%(tool_name, filename))
+            else:
+                sys.stderr.write("cannot get stdout contents of tool name %s\n"%tool_name)
+        # ラン詳細の取得
+        #weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
+        #sys.stderr.write("%s\n"%weburl)
+        #res = nodeREDWorkflowAPI(token, weburl)
+        outfile = open("run_%s_detail.log"%runid, "w")
+        outfile.write("detail for run(%s) --------------------\n"%runid)
+        outfile.write("%s\n"%json.dumps(retval, indent=2, ensure_ascii=False))
+        outfile.close()
+        sys.stderr.write("wrote run detail info to run_%s_detail.log\n"%runid)
 
     if with_result is False:
         return retval
@@ -186,7 +216,8 @@ def main():
         print("              siteid  : siteで＋５桁の数字。site00002など")
         sys.exit(1)
 
-    get_rundetail(token, url, siteid, run_id, result, debug)
+    tool_names = []
+    get_rundetail(token, url, siteid, run_id, result, tool_names, debug)
 
 if __name__ == '__main__':
     main()
