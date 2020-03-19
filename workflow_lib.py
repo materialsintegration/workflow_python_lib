@@ -146,30 +146,30 @@ class MIApiCommandClass(object):
 
         self.torque_job_list.remove(job_id)
 
-    def log_solver_start(self):
+    def log_solver_start(self, solver_id):
         '''
         ソルバー実行開始記録
         '''
 
         if self.solver_logfile is not None:
-            self.solver_logfile.write("%s: start: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], self.solver_id))
+            self.solver_logfile.write("%s: start: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id))
 
-    def log_solver_emend(self):
+    def log_solver_emend(self, solver_id):
         '''
         ソルバー実行異常終了記録
         '''
 
         if self.solver_logfile is not None:
-            self.solver_logfile.write("%s: abnormal end: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], self.solver_id))
+            self.solver_logfile.write("%s: abnormal end: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id))
 
-    def log_solver_normalend(self):
+    def log_solver_normalend(self, solver_id):
         '''
         ソルバー実行正常終了記録
 
         '''
 
         if self.solver_logfile is not None:
-            self.solver_logfile.write("%s: normal end: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], self.solver_id))
+            self.solver_logfile.write("%s: normal end: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id))
 
     def setInportNames(self, inports):
         '''
@@ -377,7 +377,8 @@ class MIApiCommandClass(object):
 
         print('%s exec command bellow'%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), flush=True)
         print(cmd, flush=True)
-        self.log_solver_start()
+        solver_id = str(uuid.uuid4())
+        self.log_solver_start(solver_id)
         #ret = subprocess.call(cmd, shell=True, executable='/bin/bash')
         ret = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -403,7 +404,7 @@ class MIApiCommandClass(object):
 
         if ret.poll() != 0:
             print('%s failed execute program(return code = %d)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), ret.poll()), flush=True)
-            self.log_solver_emend()
+            self.log_solver_emend(solver_id)
             if not_errors is None:
                 sys.exit(1)
             else:
@@ -414,7 +415,7 @@ class MIApiCommandClass(object):
                 if is_error is True:
                     sys.exit(1)
 
-        self.log_solver_normalend()
+        self.log_solver_normalend(solver_id)
 
         if do_postprocess is True:
             self.PostProcessing()
