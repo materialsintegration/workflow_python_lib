@@ -14,7 +14,10 @@ import io
 from glob import glob
 
 # ソルバー起動ログ格納ディレクトリ
-SOLVER_LOGFILE = "/home/misystem/assets/workflow/site00002/solver_logs/solver_execute.log"
+if ("MISYSTEM_SITEID" in os.environ) is True:
+    SOLVER_LOGFILE = "/home/misystem/assets/workflow/%s/solver_logs/solver_execute.log"%os.environ["MISYSTEM_SITEID"]
+else:
+    SOLVER_LOGFILE = "/home/misystem/assets/workflow/siteid00002/solver_logs/solver_execute.log"
 
 '''
 MI-APIを使用したツールの補助ライブラリ
@@ -399,14 +402,14 @@ class MIApiCommandClass(object):
                 break
 
         if ret.poll() != 0:
-            print('%s failed execute program'%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), flush=True)
+            print('%s failed execute program(return code = %d)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), ret.poll()), flush=True)
             self.log_solver_emend()
             if not_errors is None:
                 sys.exit(1)
             else:
                 is_error = True
                 for item in not_errors:
-                    if ret == item:
+                    if ret.poll() == item:
                         is_error = False 
                 if is_error is True:
                     sys.exit(1)
