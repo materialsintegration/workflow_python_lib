@@ -152,7 +152,8 @@ class MIApiCommandClass(object):
         '''
 
         if self.solver_logfile is not None:
-            self.solver_logfile.write("%s: start: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id))
+            self.solver_logfile.write("%s: start: %s: %s: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id, self.RunInfo["miwf_runid"], self.RunInfo["miwf_workflowid"]))
+            self.solver_logfile.flush()
 
     def log_solver_emend(self, solver_id):
         '''
@@ -160,7 +161,8 @@ class MIApiCommandClass(object):
         '''
 
         if self.solver_logfile is not None:
-            self.solver_logfile.write("%s: abnormal end: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id))
+            self.solver_logfile.write("%s: abnormal end: %s: %s: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id, self.RunInfo["miwf_runid"], self.RunInfo["miwf_workflowid"]))
+            self.solver_logfile.flush()
 
     def log_solver_normalend(self, solver_id):
         '''
@@ -169,7 +171,8 @@ class MIApiCommandClass(object):
         '''
 
         if self.solver_logfile is not None:
-            self.solver_logfile.write("%s: normal end: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id))
+            self.solver_logfile.write("%s: normal end: %s: %s: %s: %s: %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.solver_name, self.RunInfo["miwf_userid"], solver_id, self.RunInfo["miwf_runid"], self.RunInfo["miwf_workflowid"]))
+            self.solver_logfile.flush()
 
     def setInportNames(self, inports):
         '''
@@ -331,6 +334,9 @@ class MIApiCommandClass(object):
         if self.tool_directory is not None:
             print("%s change current dir from %s to %s"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), os.getcwd(), tooldir), flush=True)
             os.chdir(self.tool_directory)
+            # ワークフローIDを取得する
+            if self.RunInfo["miwf_workflowid"] is None:
+                self.RunInfo["miwf_workflowid"] = self.tool_directory.split("/")[0]
 
         # 入力ファイルのリンクをリアル名で作成する。
         if translate_input is True:

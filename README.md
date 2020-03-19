@@ -15,7 +15,8 @@
 * workflow_params.py    - ワークフローのパラメータ一覧を出力するスクリプト
 * workflow_rundetail.py - ラン詳細を得るスクリプト
 * workflow_runlist.py   - 指定されたワークフローを実行したラン番号のリストを返す。
-* pairplot.py           - タブ区切りのCSVファイルからペアプロットを作成する。
+* workflow_changest.py  - 指定されたランのステータスを実行中止(canceled)へ変更する。
+* pairgraph.py          - タブ区切りのCSVファイルからペアプロットを作成する。
   + Thermo-Calc実行スクリプト専用
   + 要matplotlib、seabornパッケージ
 
@@ -36,16 +37,16 @@ ERFH5(拡張子erfh5)フォーマットを読むためのライブラリ
 * erfh5_lib.py
 * erfh5_xml_part.py
 
-### 予測モジュール実行用
+### workflow_lib.py 
 予測モジュール実行用スクリプト内でクラスインスタンスを作成して使用する。予測モジュール実行用スクリプトもできればpythonが望ましい。ワークフローの入力と出力に対する定義を用意し、ソルバー実行を行う。定義は以下のとおりの書式のpython辞書を用意（記述）する。
 
 * 使い方
-　予測モジュールで指定した実行プログラムでimportし、インスタンスを作成して使用する。
+  + 予測モジュールで指定した実行プログラムでimportし、インスタンスを作成して使用する。
   ```
   sys.path.append("/home/misystem/assets/modules/workflow_python_lib")
   from workflow_lib import *
   ```
-  pythonパスを追加し、読み込む。
+  + pythonパスを追加し、読み込む。
 
 * inputポート用定義  
   ```
@@ -80,20 +81,28 @@ ERFH5(拡張子erfh5)フォーマットを読むためのライブラリ
   wf_tool.setRealName(in_realnames, out_realnames)
   wf_tool.Initialize(translate_input=True, translate_output=True)
   ```
-  インスタンス化はパラメータ不要。  
-  パラメータのtranslate_inputおよびtranslate_outputはポート名から実ファイル名へのシンボリックリンク作成を行うかどうかのフラグである。Trueを設定すれば、行う。  
-※ Initializeメンバー関数はmiapiの初期化を行う。実行時、translate_inputがTrueの場合、inputポートのポート名と実ファイル名の変換（コピー動作、シンボリックリンクではない）を行う。
+  + インスタンス化はパラメータ不要。  
+  + パラメータのtranslate_inputおよびtranslate_outputはポート名から実ファイル名へのシンボリックリンク作成を行うかどうかのフラグである。Trueを設定すれば、行う。  
+  + Initializeメンバー関数はmiapiの初期化を行う。実行時、translate_inputがTrueの場合、inputポートのポート名と実ファイル名の変換（コピー動作、シンボリックリンクではない）を行う。
 
 * ソルバー実行
-ソルバー実行のために、ソルバー名（定期的に情報集約して使用率を計測する）の設定を行い、ソルバーを実行する。
+ソルバー実行のために、ソルバー名（Zabbixなどで定期的に情報集約して使用率を計測する用）の設定を行い、ソルバーを実行する。ExecSolverメンバー関数内で、ソルバーログに実行開始、終了が日時と共に記録される。
   ```
   cmd = "ソルバー実行行"
   wf_tool.solver_name = "ソルバー名"
   wf_tool.ExecSolver(cmd)
   ```
-※ ソルバー実行行はコマンド名とパラメータ  
-※ 情報集約場所は、~/assets/workflow/[サイト番号]/solver_logs以下である。  
-※ ExecSolverメンバー関数実行後、translate_outputがTrueの場合に、各ポート名と実ファイル名の変換（コピー動作、シンボリックリンクではない）を行う。このメンバー関数を使用しない場合はoutputポートのポート名と実ファイルの変換は行われない。行いたい場合は次の実行後の処理にある、PostProcessメンバー関数を実行する。
+  + ソルバー実行行はコマンド名とパラメータ  
+  + ソルバーログは、~/assets/workflow/[サイト番号]/solver_logs以下である。  
+  + ExecSolverメンバー関数実行後、translate_outputがTrueの場合に、各ポート名と実ファイル名の変換（コピー動作、シンボリックリンクではない）を行う。このメンバー関数を使用しない場合はoutputポートのポート名と実ファイルの変換は行われない。行いたい場合は次の実行後の処理にある、PostProcessメンバー関数を実行する。
+  + ソルバー実行ログ例
+    ```
+    2020/03/19 10:16:12: start: sysWeld: 200000100000001: 9cc0f5c1-da33-4e2b-b87e-a26884f08e48: None: W000020000000268
+    2020/03/19 10:20:32: normal end: sysWeld: 200000100000001: 9cc0f5c1-da33-4e2b-b87e-a26884f08e48: None: W000020000000268
+    ```
+    - 日時、状況、ソルバー名、ランの実行者ID、ソルバー実行用個別ID、ラン番号（未対応）、ワークフローIDが記録されている。
+    - 状況は、start(開始)/normal end(正常終了)/abnormal end(異常終了)のどれかである。
+    - ソルバー実行用個別IDはExecSolver毎に発行されるUUIDである。
 
 * 実行後の処理いくつか
   + ExecSolverを実行し無かった場合に実行して、outputポートのポート名と実ファイル名の変換を行う。
@@ -201,7 +210,7 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
   python3.6 /home/misystem/assets/modules/workflow_python_lib/workflow_execute.py workflow_id:W000020000000219 token:64文字のトークンを指定する misystem:dev-u-tokyo.mintsys.jp weld_shape_pf_param_py_01:weld_shape_pf_param.py クランプ終了時間_01:Clamping_End_Time.dat クランプ開始時間_01:Clamping_Initial_Time.dat 入熱量_01:Energy.dat 冷却終了温度_01:Cooling_End_Time.dat 冷却開始時間_01:Cooling_Initial_Time.dat 初期温度_01:Initial_Temperature.dat 初期組織の相分率_01:init_microstructure.txt 効率_01:Efficiency.dat 溶接幅_01:Width.dat 溶接終了時間_01:Welding_End_Time.dat 溶接長さ_01:Length.dat 溶接開始時間_01:Welding_Initial_Time.dat 熱源移動速度_01:Velocity.dat 環境温度_01:Amient_Temp.dat 貫通_01:Penetration.dat number:-1
   ```
 
-  ※ number:-1 なのはこのプログラムはnumberに1以上の整数を指定すると、同時実行中のランが指定した数以下のうちは連続してランを実行する。-1の場合は1つ実行し、終了したら、実行プログラムを終了する。
+  ※ number:-1 は連続実行用のパラメータ指定子。-1なのはこのプログラムはnumberに1以上の整数を指定すると、同時実行中のランが指定した数以下のうちは連続してランを実行する。-1の場合は1つ実行し、終了したら、実行プログラムを終了する。
 
 * 実行開始後
   
@@ -231,14 +240,20 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
     ```
     ※ /tmp以下はシステムにもよるが30日前後でクリーンアップされ、一般ファイルは削除されるので、注意。
 
-  + 強制停止  
-    途中ctrl+Cで停止させられるが、実行中だったり、待ち合わせ中などの場合は、前者ならステータスの変化、後者なら待ち合わせ終了後の実行タイミングまでプログラムは終了しません。signal処理しているので、ctrl+Cのみこの様な挙動になる。
+  + 実行停止  
+    途中ctrl+Cでスクリプトの処理自体は停止させられるが、実行中だったり、待ち合わせ中などの場合は、前者ならステータスの変化、後者なら待ち合わせ終了後の実行タイミングまでスクリプトは終了しません。またワークフロー自体の停止も行いません。signal処理しているので、ctrl+Cのみこの様な挙動になる。
+    + 強制停止したい場合は ctrl+Zで停止させ、
+    ```
+    $ kill -9 %1
+    ```
+    で強制終了させる。
+　  + この場合でもワークフロー実行は停止、終了はしません。 
   + 異常終了  
     ワークフローが異常終了した場合は、各ツールのstdoutとラン詳細のJSONファイルをMIntシステムより取得し保存する。前者は「ツール名.log」。後者は「run_ラン番号_detail.log」という名前になる。
   + その他  
     ワークフローAPIプログラムの異常など異常終了以外の異常応答は５分後リトライを５回まで行う。回復しない場合は終了する。
 
-### workflow_raunlist.py
+### workflow_runlist.py
 ワークフローIDから対応するランのラン場号リストを返すプログラムである。
 
 * 実行  
@@ -254,6 +269,21 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
   ['R000020000329110', 'R000020000326038', 'R000020000324137', 'R000020000324123', 'R000020000323204', 'R000020000317382', 'R000020000226744', 'R000020000224330', 'R000020000223270', 'R000020000210805', 'R000020000210789', 'R000020000210787', 'R000020000210779', 'R000020000210749', 'R000020000208019', 'R000020000150961', 'R000020000149962', 'R000020000136709', 'R000020000136681', 'R000020000136643', 'R000020000136603', 'R000020000136586', 'R000020000136563', 'R000020000136548']
   ```
   内部の関数では上記結果はリストで返る。
+
+* 関数呼び出し  
+  importして関数として呼び出すことも可能である。
+
+  ```python
+  def get_runlist(token, url, siteid, workflow_id):
+    '''
+    ラン詳細の取得
+    @param token (string) APIトークン
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param siteid (string) サイトID。e.g. site00002
+    @param workflow_id (string) ワークフローID。e.g. W000020000000197
+    @retcal (list) {"runid":ランID, "status":ステータス, "description":説明} と言う辞書のリスト
+    '''
+  ```
 
 ### workflow_rundetail.py
 ラン詳細を取得するプログラムである。
@@ -292,7 +322,69 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
   ```
   内部の関数を呼ぶと詳細情報のJSONデータのみが返される。
 
+* 関数呼び出し  
+  importして関数として呼び出すことも可能である。
+  ```
+  def get_rundetail(token, url, siteid, runid, with_result=False, debug=False):
+    '''
+    ラン詳細の取得
+    @param token (string) APIトークン
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param siteid (string) サイトID。e.g. site00002
+    @param run_id (string) ランID。e.g. R000020000365545
+    @retval (dict)
+    '''
+  ```
+
+* workflow_iourl.py
+指定したラン番号の入出力ファイルURLの一覧を取得します。
+* 実行  
+  実行に必要なパラメータ。
+  実行に必要なパラメータ
+  + 共通パラメータ
+  + ランID
+  + サイトID
+  ```
+  python3.6 workflow_iourl.py token:<APIトークン>  misystem:dev-u-tokyo.mintsys.jp run_id:R000020000365301 siteid:site00002
+  ```
+  実行すると以下のような表示が行われる。  
+  ```
+  {
+    "R000020000464367": {
+      "loop": 0,
+      "pyin": [
+        "https://dev-u-tokyo.mintsys.jp:50443/gpdb-api/v2/runs/",
+        1
+      ],
+      "pysaveto": [
+        "https://dev-u-tokyo.mintsys.jp:50443/gpdb-api/v2/runs/",
+        4
+      ],
+      "pyout": [
+        null,
+        null
+      ]
+    }
+  }
+  ```
+
+* 関数呼び出し  
+  importして関数として呼び出すことも可能である。
+  ```
+  def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0):
+    '''
+    入出力ファイルURL一覧の取得
+    @param token (string) APIトークン
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param siteid (string) サイトID。e.g. site00002
+    @param runid (string) ランID。e.g. R000020000365545
+    @param with_result (bool) この関数を実行時、情報を標準エラーに出力するか
+    @retval (dict) {"runID":{"ポート名":[ファイルURL, ファイルサイズ]}}
+    '''
+  ```
+
 # 参考文献
-* pairplot
+* pairgraph
   + [seaborn.pariplot](https://seaborn.pydata.org/generated/seaborn.pairplot.html#seaborn.pairplot)
   + [Python, pandas, seabornでペアプロット図（散布図行列）を作成](https://note.nkmk.me/python-seaborn-pandas-pairplot/)
+
