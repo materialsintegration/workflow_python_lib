@@ -82,6 +82,9 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     if debug is True:
         print(dirname)
 
+    if tool_names is None:
+        return retval
+
     if len(tool_names) != 0:
         for tool_name in tool_names:
             #tool_name = "%s_%s"%(workflow_id, tool_name)
