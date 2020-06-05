@@ -8,6 +8,7 @@
 import sys, os
 from glob import glob
 import subprocess
+import datetime
 
 sys.path.append("/home/misystem/assets/modules/workflow_python_lib")
 from workflow_runlist import *
@@ -43,19 +44,25 @@ def main():
     ret = get_runlist(token, url, siteid, workflow_id)
     cmd = "du -sh"
     for run_id in ret:
-        print("getting run(%s) detail"%run_id["run_id"])
+        sys.stdout.write("run(%s) 容量："%run_id["run_id"])
         rundetail = get_rundetail(token, url, siteid, run_id["run_id"])
-        if rundetail["status"] == "abend":
-            continue
+        #if rundetail["status"] == "abend":
+        #    continue
         uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
         #dirname = os.path.join("/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32]), "W000020000000197/W000020000000197_ＮｉーＡｌのγ’析出組織形成（等温時効）_02")
         dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
         os.chdir(dirname)
-        print(dirname)
         ret = subprocess.check_output(cmd.split())
         amount = ret.decode("utf-8").split("\n")[0]
 
         print("ディレクトリサイズは %s"%amount)
+        if rundetail["status"] == "abend":
+            sys.stderr.write("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            sys.stderr.flush()
+        if rundetail["status"] == "canceled":
+            sys.stderr.write("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            sys.stderr.flush()
+        print(dirname)
 
 if __name__ == '__main__':
     main()

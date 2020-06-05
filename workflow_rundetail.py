@@ -63,7 +63,7 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
     res = nodeREDWorkflowAPI(token, weburl)
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
-        print("%s - 異常な終了コードを受信しました(%d)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+        sys.stderr.write("%s - 異常な終了コードを受信しました(%d)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
         time.sleep(120)
         sys.exit(1)
     retval = res.json()
@@ -71,9 +71,11 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
         pass
     elif retval["status"] == "abend" or retval["status"] == "canceled":
         if retval["status"] == "abend":
-            sys.stderr.write("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            if tool_names is None:
+                sys.stderr.write("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         else:
-            sys.stderr.write("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            if tool_names is None:
+                sys.stderr.write("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
     if debug is True:
         print("%s\n"%json.dumps(retval, indent=2, ensure_ascii=False))
