@@ -15,6 +15,8 @@ import random
 import subprocess
 import signal
 import traceback
+from getpass import getpass
+from openam_operator import openam_operator
 
 from common_lib import *
 from workflow_params import *
@@ -42,7 +44,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0)):
+def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0), debug=False):
     '''
     入出力ファイルURL一覧の取得
     @param token (string) APIトークン
@@ -50,10 +52,13 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
     @param siteid (string) サイトID。e.g. site00002
     @param runid (string) ランID。e.g. R000020000365545
     @param with_result (bool) この関数を実行時、情報を標準エラーに出力するか
+    @param timeout (tuple) タイムアウトを接続確立用とその後の応答用の２つを指定する
+    @param debug (bool) Trueなら応答ボディを表示して終わり
     '''
 
     # 結果ファイルの取得
-    weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
+    #weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
+    weburl = "https://%s:50443/workflow-api/v3/runs/%s/data"%(url, runid)
     retry_count = 0
     while True:
         if STOP_FLAG is True:
@@ -94,8 +99,14 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             break
 
     loop_num = 0
+
+    if debug is True:
+        print(json.dumps(res.json(), indent=2, ensure_ascii=False))
+        sys.exit(0)
+
     io_dict = {}
     io_dict[runid] = {}
+
     for url_list in res.json()["url_list"]:
 
         #sys.stderr.write("%s\n"%json.dumps(url_list, indent=2, ensure_ascii=False))
@@ -108,31 +119,53 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             #sys.exit(1)
             return False, ""
 
-        # 入力ポートの処理
-        tool_inputs = url_list["workflow_inputs"]
-        if len(tool_inputs) == 0:
-            sys.stderr.write('url_list["workflow_tools"]["tool_inputs"] が空？取得できませんでした。次を処理します。\n')
+        # ワークフロー入力ポートの処理
+        workflow_inputs = url_list["workflow_inputs"]
+        if len(workflow_inputs) == 0:
+            sys.stderr.write('url_list["workflow_inputs"] が空？取得できませんでした。次を処理します。\n')
             continue
         if with_result is True:
             sys.stderr.write("response contentes for input for workflow\n")
-            sys.stderr.write("%s\n"%json.dumps(tool_inputs, indent=2, ensure_ascii=False))
-        for item in tool_inputs:
+            sys.stderr.write("%s\n"%json.dumps(workflow_inputs, indent=2, ensure_ascii=False))
+        for item in workflow_inputs:
             param_name = item["parameter_name"].split("_")[0]
             #io_dict[runid][item["parameter_name"]] = [item["file_path"], item["file_size"]]
-            io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+            if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
+                io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
-        # 出力ポートの処理
-        tool_outputs = url_list["workflow_outputs"]
-        if len(tool_outputs) == 0:
-            sys.stderr.write('url_list["workflow_tools"]["tool_outputs"] が空？取得できませんでした。次を処理します。\n')
+        # ワークフロー出力ポートの処理
+        workflow_outputs = url_list["workflow_outputs"]
+        if len(workflow_outputs) == 0:
+            sys.stderr.write('url_list["workflow_outputs"] が空？取得できませんでした。次を処理します。\n')
             continue
         if with_result is True:
             sys.stderr.write("response contentes for output for workflow\n")
-            sys.stderr.write("%s\n"%json.dumps(tool_outputs, indent=2, ensure_ascii=False))
-        for item in tool_outputs:
+            sys.stderr.write("%s\n"%json.dumps(workflow_outputs, indent=2, ensure_ascii=False))
+        for item in workflow_outputs:
             #param_name = item["parameter_name"].split("_")[0]
-            param_name = item["parameter_name"]
-            io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+            param_name = item["parameter_name"].split("_")[0]
+            if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
+                io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+
+        # 各ツールの出力ポートの処理
+        tools_outputs = url_list["workflow_tools"]
+        if len(tools_outputs) == 0:
+            sys.stderr.write('url_list["workflow_tools"] が空？取得できませんでした。次を処理します。\n')
+            continue
+        for workflow_tool in tools_outputs:
+            tool_outputs = workflow_tool["tool_outputs"]
+            if len(tool_outputs) == 0:
+                sys.stderr.write('ツール名（%s）のurl_list["workflow_tools"][tool_outputs] が空？取得できませんでした。次を処理します。\n'%tool_outputs["tool_name"])
+                continue
+
+            if with_result is True:
+                sys.stderr.write("response contentes for output for workflow\n")
+                sys.stderr.write("%s\n"%json.dumps(tool_outputs, indent=2, ensure_ascii=False))
+            for item in tool_outputs:
+                #param_name = item["parameter_name"].split("_")[0]
+                param_name = item["parameter_name"]
+                if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
+                    io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
      
         loop_num += 1
 
@@ -145,9 +178,10 @@ def main():
     token = None
     run_id = None
     url = None
-    siteid = None
+    siteid = "site00002"
     result = False
     timeout = [10, 30]
+    debug = False
     global STOP_FLAG
 
     for items in sys.argv:
@@ -173,10 +207,12 @@ def main():
                 timeout[1] = int(items[1])
             except:
                 pass
+        elif items[0] == "debug":               # デバッグ（応答ボディのみ表示して終わり）
+            debug = True
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
-    if token is None or run_id is None or url is None or siteid is None:
+    if run_id is None or url is None:
         print("Usage")
         print("   $ python %s run_id:Rxxxx token:yyyy misystem:URL"%(sys.argv[0]))
         print("               run_id : Rで始まる15桁のランID")
@@ -187,7 +223,16 @@ def main():
         sys.exit(1)
 
     timeout = tuple(timeout)
-    ret, ret_dict = get_runiofile(token, url, siteid, run_id, result, timeout=timeout)
+    if debug is True:
+        print("応答のみ返します。")
+    if token is None:
+        if sys.version_info[0] <= 2:
+            name = raw_input("ログインID: ")
+        else:
+            name = input("ログインID: ")
+        password = getpass("パスワード: ")
+        ret, uid, token = openam_operator.miauth(url, name, password)
+    ret, ret_dict = get_runiofile(token, url, siteid, run_id, result, timeout=timeout, debug=debug)
     sys.stderr.write("%s\n"%json.dumps(ret_dict, indent=2, ensure_ascii=False))
 
 if __name__ == '__main__':
