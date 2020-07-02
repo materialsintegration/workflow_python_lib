@@ -448,9 +448,12 @@ class MIApiCommandClass(object):
         if self.translate_output is True:
             for item in self.output_realnames:
                 if os.path.exists(item) is True:
-                    shutil.copyfile(item, self.output_realnames[item])
+                    #shutil.copyfile(item, self.output_realnames[item])
+                    os.symlink(item, self.output_realnames[item])
                 else:
                     print("%s file %s is not exists in here(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item, os.getcwd()), flush=True)
+                    outfile = open(self.output_realnames[item], "w")
+                    outfile.close()
 
     def getSortedFileList(self, key):
         '''
