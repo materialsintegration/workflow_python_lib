@@ -58,7 +58,7 @@ def get_runlist(token, url, siteid, workflow_id):
     @param workflow_id (string) ワークフローID。e.g. W000020000000197
     '''
 
-    weburl = "https://%s:50443/workflow-api/v2/runs"%url
+    weburl = "https://%s:50443/workflow-api/v2/runs?workflow_id=%s"%(url, workflow_id)
     res = nodeREDWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         if res.status_code is None:
@@ -71,14 +71,20 @@ def get_runlist(token, url, siteid, workflow_id):
     runs = res.json()["runs"]
     run_lists = []
     for item in runs:
-        if item["workflow_id"].split("/")[-1] == workflow_id:
-            if ("description" in item) is True:
-                description = item["description"]
-            else:
-                description = ""
-            run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description}
-            #run_lists.append(item["run_id"].split("/")[-1])
-            run_lists.append(run_info)
+        #if item["workflow_id"].split("/")[-1] == workflow_id:
+        #    if ("description" in item) is True:
+        #        description = item["description"]
+        #    else:
+        #        description = ""
+        #    run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description}
+        #    #run_lists.append(item["run_id"].split("/")[-1])
+        #    run_lists.append(run_info)
+        if ("description" in item) is True:
+            description = item["description"]
+        else:
+            description = ""
+        run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description}
+        run_lists.append(run_info)
 
     return run_lists
 
