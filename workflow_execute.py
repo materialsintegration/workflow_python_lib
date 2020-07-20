@@ -29,6 +29,11 @@ prev_workflow_id = None
 input_ports_prev = None
 output_ports_prev = None
 STOP_FLAG = False
+siteids = {"dev-u-tokyo.mintsys.jp":"site00002",
+            "nims.mintsys.jp":"site00011",
+            "u-tokyo.mintsys.jp":"site00001"}
+
+api_url ="https://%s:50443/workflow-api/v3/runs"
 
 def signal_handler(signum, frame):
     '''
@@ -130,9 +135,10 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     # ワークフローの実行
     retry_count = 0
     while True:
-        weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
+        #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
+        weburl = api_url%(url)
         params = {"workflow_id":"%s"%workflow_id}
-        res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(10.0, 300.0), error_print=False)
+        res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(300.0, 300.0), error_print=False)
         
         # 実行の可否
         if res.status_code != 200 and res.status_code != 201:
@@ -196,7 +202,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     # ラン終了待機
     start_time = None
     working_dir = None
-    weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
+    #weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
+    weburl = api_url%url + "/" + runid
     #print("ワークフロー実行中...")
     while True:
         res = nodeREDWorkflowAPI(token, weburl)
@@ -257,7 +264,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     
     #time.sleep(10)
     # 結果ファイルの取得
-    weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
+    #weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
+    weburl = api_url%url + "/%s/data"%runid
     os.mkdir("/tmp/%s"%runid)
     retry_count = 0
     while True:
@@ -313,57 +321,78 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 time.sleep(5.0)
                 retry_count += 1
             continue
+        # ここまでくれば情報取得成功？
+        break
         
-        for tool in wf_tools:
-            tool_outputs = tool["tool_outputs"]
-            for item in tool_outputs:
-                filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
-                outputfilenames[item["parameter_name"]] = filename
-                #print("outputfile:%s"%item["file_path"])
-                #sys.stderr.write("file size = %s\n"%item["file_size"])
-                weburl = item["file_path"]
-                # ファイルサイズで取得するしないを判定する。基準は１Gバイト
-                filesize = int(item["file_size"])
-                if filesize > (1024 * 1024 * 1024):
-                    sys.stderr.write("%sのファイルのファイルサイズが１Ｇバイトを越えるので、取得しません。\n"%item["parameter_name"])
-                    sys.stderr.write("file size = %s\n"%item["file_size"])
-                    sys.stderr.write("URL は %s\n"%weburl)
-                    sys.stderr.flush()
-                    continue
-                while True:
-                    try:
-                        res = nodeREDWorkflowAPI(token, weburl, method="get_noheader")
-                    except MemoryError:
-                        sys.stderr.write("%s\n"%traceback.format_exc())
-                        sys.stderr.write("%sのファイルの取得に失敗しました(MemoryError)\n"%item["parameter_name"])
-                        sys.stderr.write("file size = %s\n"%item["file_size"])
-                        sys.stderr.flush()
-                        break
-                    if res.status_code == 500:
-                        sys.stderr.write("%s - 結果を取得できませんでした。５分後に再取得します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-                        sys.stderr.flush()
-                        time.sleep(300)
-                        continue
-                    else:
-                        break
-                try:
-                    outfile = open(filename, "wb")
-                    #outfile.write("%s"%res.text)
-                    outfile.write(res.content)
-                    outfile.close()
-                except:
-                    sys.stderr.write("%s\n"%traceback.format_exc())
-                    sys.stderr.write("%sのファイルの保存に失敗しました\n"%item["parameter_name"])
-                    sys.stderr.write("file size = %s\n"%item["file_size"])
-                    sys.stderr.flush()
-                sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
+    for tool in wf_tools:
+        tool_outputs = tool["tool_outputs"]
+        for item in tool_outputs:
+            filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
+            outputfilenames[item["parameter_name"]] = filename
+            #print("outputfile:%s"%item["file_path"])
+            #sys.stderr.write("file size = %s\n"%item["file_size"])
+            weburl = item["file_path"]
+            sys.stderr.write("%s - %s 取得中...\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item["parameter_name"]))
+            sys.stderr.flush()
+            # sile_sizeが無いポートの対処
+            if ("file_size" in item) is False:
+                sys.stderr.write("%s - ファイルサイズが取得できないので、ファイルを取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.write("URL は %s\n"%weburl)
                 sys.stderr.flush()
-                #print("%s:%s"%(item["parameter_name"], filename))
-                #print("%s:%s"%(item["parameter_name"], res.text))
-                get_file = True
+                if len(tool_outputs) == 1:
+                    get_file = True
+                continue
+            filesize = int(item["file_size"])
+            # ファイルサイズで取得するしないを判定する。基準は１Gバイト
+            if filesize > (1024 * 1024 * 1024):
+                sys.stderr.write("%s - ファイルサイズが１Ｇバイトを越えるので、取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.write("file size = %s\n"%item["file_size"])
+                sys.stderr.write("URL は %s\n"%weburl)
+                sys.stderr.flush()
+                continue
+            if len(weburl.split("/")) == 7:
+                sys.stderr.write("file_size(%d)はあるが、URL(%s)が不完全なので取得しません。\n"%(item["file_size"], weburl))
+                sys.stderr.flush()
+                continue
+            while True:
+                try:
+                    timeout = (10.0, 600.0)
+                    res = nodeREDWorkflowAPI(token, weburl, method="get_noheader", timeout=timeout)
+                except MemoryError:
+                    sys.stderr.write("%s\n"%traceback.format_exc())
+                    sys.stderr.write("%s - ファイルの取得に失敗しました(MemoryError)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    sys.stderr.write("file size = %s\n"%item["file_size"])
+                    sys.stderr.flush()
+                    break
+                if res.status_code == 500:
+                    sys.stderr.write("%s - 結果を取得できませんでした。５分後に再取得します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    sys.stderr.flush()
+                    time.sleep(300)
+                    continue
+                else:
+                    break
+            if res.status_code is None:         # タイムアウトだった
+                sys.stderr.write("%s - タイムアウトしました。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
+                sys.stderr.flush()
+                continue
+            try:
+                outfile = open(filename, "wb")
+                #outfile.write("%s"%res.text)
+                outfile.write(res.content)
+                outfile.close()
+            except:
+                sys.stderr.write("%s\n"%traceback.format_exc())
+                sys.stderr.write("%sのファイルの保存に失敗しました\n"%item["parameter_name"])
+                sys.stderr.write("file size = %s\n"%item["file_size"])
+                sys.stderr.flush()
+            sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
+            sys.stderr.flush()
+            #print("%s:%s"%(item["parameter_name"], filename))
+            #print("%s:%s"%(item["parameter_name"], res.text))
+            get_file = True
          
-        if get_file is True:
-            break
+#        if get_file is True:
+#            break
 
 def wait_running_number_api(url, token, number):
     '''
@@ -373,7 +402,8 @@ def wait_running_number_api(url, token, number):
     global STOP_FLAG
     headers = {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Accept': 'application/json'}
     session = requests.Session()
-    weburl = "https://%s:50443/workflow-api/v2/runs"%url
+    #weburl = "https://%s:50443/workflow-api/v2/runs"%url
+    weburl = api_url%url
 
     number = int(number)
     while True:
