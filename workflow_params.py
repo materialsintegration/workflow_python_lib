@@ -37,7 +37,7 @@ def extract_workflow_params(workflow_id, token, url):
 
     retry_count = 0
     while True:
-        weburl = "https://%s:50443/workflow-api/v2/workflows/%s"%(url, workflow_id)
+        weburl = "https://%s:50443/workflow-api/v3/workflows/%s"%(url, workflow_id)
         res = nodeREDWorkflowAPI(token, weburl)
 
         retry_count += 1
