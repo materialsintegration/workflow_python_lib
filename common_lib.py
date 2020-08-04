@@ -34,6 +34,8 @@ def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, meth
                'Content-Type': 'application/json',
                'Accept': 'application/json'}
 
+    #print("header = %s"%str(headers))
+    #print("requestBody = %s"%str(invdata))
     # http request
     session = requests.Session()
     session.trust_env = False
