@@ -211,12 +211,18 @@ class MIApiCommandClass(object):
         @retval なし
         '''
 
-        #if input_realnames is None or len(input_realnames) == 0:
-        #    raise Exception("There is no relaname and port name list")
-        #if output_realnames is None or len(output_realnames) == 0:
-        #    raise Exception("There is no relaname and port name list")
+        #2020/08/03 パラメータのポート名とファイル名から実ファイル名にリンクを貼るための仕組みを
+        # 以前は２つの辞書を設定して行っていたが、SetInportNamesで設定する辞書のみとする。
+        # ただし、既存のワークフローではその設定ができていないので、従来の設定でも動作するための
+        # 仕組みを実装する。
+        # input_realnames のキーとinput_port_namesのキーを照合し、同じ場合、input_port_names[キー]
+        # が空だった場合、input_realnames[キー]の値を設定する。
 
         self.input_realname_tables = input_realnames
+        if input_realnames is not None:
+            for item in input_realnames:
+                if (item in self.input_port_names) is True and self.input_port_names[item] == "":
+                    self.input_port_names[item] = input_realnames[item]
         #self.output_realname_tables = output_realnames
         self.output_realnames = output_realnames
 
@@ -310,15 +316,18 @@ class MIApiCommandClass(object):
         '''
         # 入力側
         for item in self.input_port_names:
-            filename = os.path.basename(self.input_filenames[item])
-            #if (item in self.input_realname_tables) is True:
-            for real_name in self.input_realname_tables:
-                if filename.startswith(real_name) is True:
-            #if (filename in self.input_realname_tables) is True:
-                #self.input_realnames[filename] = self.input_realname_tables[item]
-                    self.input_realnames[filename] = self.input_realname_tables[real_name]
-                elif filename == "value":
-                    self.input_realnames[item] = self.input_realname_tables[real_name]
+            filename = os.path.basename(self.input_filenames[item])     # ポート名に設定されたファイル名
+            if filename == "value":
+                self.input_realnames[item] = self.input_port_names[item]
+            else:
+                self.input_realnames[filename] = self.input_port_names[item]    # ポート名をキーにした値としてのリアル名
+#            for real_name in self.input_realname_tables:
+#                if filename.startswith(real_name) is True:
+#                    #self.input_realnames[filename] = self.input_realname_tables[real_name]
+#                    self.input_realnames[filename] = self.input_port_names[item]    # ポート名をキーにした値としてのリアル名
+#                elif filename == "value":
+#                    self.input_realnames[item] = self.input_realname_tables[real_name]
+
                 #print("%s input_port_name = %s / filename = %s / realname = %s"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item, filename, self.input_realname_tables[real_name]))
         # 出力側
         #for item in self.output_port_names:
