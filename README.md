@@ -252,19 +252,49 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
     ワークフローAPIプログラムの異常など異常終了以外の異常応答は５分後リトライを５回まで行う。回復しない場合は終了する。
 
 ### workflow_runlist.py
-ワークフローIDから対応するランのラン場号リストを返すプログラムである。
+ライブラリとしては、ワークフローIDから対応するランのラン番号リストなどの辞書を返すプログラムである。単体実行した時は実行時ディレクトリやラン詳細のURLを表示する。
+
+件数が多い場合の処理は含まれていないので、注意すること。
 
 * 実行  
   実行に必要なパラメータ
   + 共通パラメータ
   + ワークフローID
   + サイトID
+  + トークン（無い場合はユーザーIDとパスワードによるログイン処理を実行する）
   ```
-  python3.6 workflow_runlist.py token:<APIトークン> misystem:dev-u-tokyo.mintsys.jp workflow_id:W000020000000217 siteid:site00002
+  python3.6 workflow_runlist.py [token:<APIトークン>] misystem:dev-u-tokyo.mintsys.jp workflow_id:W000020000000217 siteid:site00002
   ```
-  実行すると以下のような表示が行われる。  
+* 単体実行すると以下のような表示が行われる。  
   ```
-  ['R000020000329110', 'R000020000326038', 'R000020000324137', 'R000020000324123', 'R000020000323204', 'R000020000317382', 'R000020000226744', 'R000020000224330', 'R000020000223270', 'R000020000210805', 'R000020000210789', 'R000020000210787', 'R000020000210779', 'R000020000210749', 'R000020000208019', 'R000020000150961', 'R000020000149962', 'R000020000136709', 'R000020000136681', 'R000020000136643', 'R000020000136603', 'R000020000136586', 'R000020000136563', 'R000020000136548']
+  $ python3.6 workflow_runlist.py workflow_id:W000020000000283 misystem:dev-u-tokyo.mintsys.jp siteid:site00002 result:true
+  processing parameter workflow_id
+  workflow_id is W000020000000283
+  processing parameter misystem
+  url for misystem is dev-u-tokyo.mintsys.jp
+  processing parameter siteid
+  siteid is site00002
+  processing parameter result
+  ログインID: utadmin01
+  パスワード: 
+  RunID : R000020000531497
+                 開始 : 2020/07/21 09:24:00
+                 終了 : 2020/07/21 11:39:38
+           ステータス : canceled
+          ラン詳細URL : https://dev-u-tokyo.mintsys.jp/workflow/runs/20000531497
+    実行時ディレクトリ: /home/misystem/assets/workflow/site00002/calculation/3d/38/65/5d/11/ad/4f/9d/a6/1d/3c/a2/d0/65/51/84
+  RunID : R000020000531496
+                 開始 : 2020/07/21 09:17:41
+                 終了 : 2020/07/21 09:19:36
+           ステータス : abend
+          ラン詳細URL : https://dev-u-tokyo.mintsys.jp/workflow/runs/20000531496
+    実行時ディレクトリ: /home/misystem/assets/workflow/site00002/calculation/6c/e9/0e/ed/96/a7/4a/f0/bb/78/8a/ba/0e/50/71/e8
+  RunID : R000020000531495
+                 開始 : 2020/07/21 09:13:22
+                 終了 : 2020/07/21 09:13:36
+           ステータス : abend
+          ラン詳細URL : https://dev-u-tokyo.mintsys.jp/workflow/runs/20000531495
+    実行時ディレクトリ: /home/misystem/assets/workflow/site00002/calculation/ec/fa/29/71/2a/f1/47/91/8c/45/86/41/20/66/32/8a
   ```
   内部の関数では上記結果はリストで返る。
 
@@ -282,6 +312,11 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
     @retcal (list) {"runid":ランID, "status":ステータス, "description":説明} と言う辞書のリスト
     '''
   ```
+* 辞書は以下のような内容
+  ```python
+  {"run_id":"Rxxxxxyyyyyyyyyy", "status":"completed", "description":"", "uuid":"", "start":"<creation_time>", "end":"<modification_time>"}
+  ```
+  日時はJSTである。
 
 ### workflow_rundetail.py
 ラン詳細を取得するプログラムである。
