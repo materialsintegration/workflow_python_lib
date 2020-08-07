@@ -14,6 +14,7 @@ import random
 import subprocess
 import signal
 import traceback
+import datetime
 
 try:
     import mysql.connector
@@ -22,6 +23,11 @@ except:
     has_mysql = False
 from common_lib import *
 from workflow_params import *
+if os.name == "nt":
+    import openam_operator
+else:
+    from openam_operator import openam_operator     # MIシステム認証ライブラリ
+from getpass import getpass
 
 prev_workflow_id = None
 input_ports_prev = None
@@ -49,6 +55,33 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
+def utc_to_jst(timestamp_utc):
+    '''
+    タイムゾーン変換：UTCからJSTへ
+    '''
+    datetime_utc = datetime.datetime.strptime(timestamp_utc + "+0000", "%Y-%m-%d %H:%M:%S.%f%z")
+    datetime_jst = datetime_utc.astimezone(datetime.timezone(datetime.timedelta(hours=+9)))
+    timestamp_jst = datetime.datetime.strftime(datetime_jst, '%Y-%m-%d %H:%M:%S.%f')
+    return timestamp_jst
+
+def getJstDatetime(utc_time):
+    '''
+    標準時から日本時間へ変更した、dateteimオブジェクトを返す
+    '''
+
+    jst_start_time = utc_time.split("Z")[0] + ".00000"
+    jst_start_time = jst_start_time.replace("T", " ")
+    retval = utc_to_jst(jst_start_time)
+    YYMMDD = retval.split()[0]
+    hhmmss = retval.split()[1]
+    Y = int(YYMMDD.split("-")[0])
+    M = int(YYMMDD.split("-")[1])
+    D = int(YYMMDD.split("-")[2])
+    h = int(hhmmss.split(":")[0])
+    m = int(hhmmss.split(":")[1])
+    s = int(hhmmss.split(":")[2].split(".")[0])
+    return datetime.datetime(Y, M, D, h, m, s)
+
 def get_runlist(token, url, siteid, workflow_id):
     '''
     ラン詳細の取得
@@ -58,16 +91,16 @@ def get_runlist(token, url, siteid, workflow_id):
     @param workflow_id (string) ワークフローID。e.g. W000020000000197
     '''
 
-    weburl = "https://%s:50443/workflow-api/v2/runs?workflow_id=%s"%(url, workflow_id)
+    weburl = "https://%s:50443/workflow-api/v3/runs?workflow_id=%s"%(url, workflow_id)
     res = nodeREDWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         if res.status_code is None:
             print("%s - 接続がタイムアウトしました(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
-            return False
+            return False, res
         print("%s - 異常な終了コードを受信しました(%d)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
         time.sleep(120)
         print(res.text)
-        return False
+        return False, res
     runs = res.json()["runs"]
     run_lists = []
     for item in runs:
@@ -83,10 +116,28 @@ def get_runlist(token, url, siteid, workflow_id):
             description = item["description"]
         else:
             description = ""
-        run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description}
+        #run_info = {"run_id":item["run_id"].split("/")[-1]}
+        run_info = item
+        run_info["status"] = item["status"]
+        run_info["description"] = description
+        # ラン詳細取得
+        weburl = "https://%s:50443/workflow-api/v3/runs/%s"%(url, run_info["run_id"].split("/")[-1])
+        run_res = nodeREDWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
+        if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
+            if res.status_code is None:
+                print("%s - 接続がタイムアウトしました(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
+                return False, res
+            print("%s - 異常な終了コードを受信しました(%d)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+            run_info["uuid"] = "unknown"
+            run_info["start"] = "unknown"
+            run_info["end"] = "unknown"
+        else:
+            run_info["uuid"] = run_res.json()["gpdb_url"].split("/")[-1]
+            run_info["start"] = getJstDatetime(run_res.json()["creation_time"])
+            run_info["end"] = getJstDatetime(run_res.json()["modified_time"])
         run_lists.append(run_info)
 
-    return run_lists
+    return True, run_lists
 
 def main():
     '''
@@ -104,30 +155,59 @@ def main():
         if len(items) != 2:
             continue
     
+        print("processing parameter %s"%items[0])
         if items[0] == "workflow_id":           # ワークフローID
             workflow_id = items[1]
+            print("workflow_id is %s"%items[1])
         elif items[0] == "token":               # APIトークン
             token = items[1]
+            print("token is %s"%items[1])
         elif items[0] == "misystem":            # 環境指定(開発？運用？NIMS？東大？)
             url = items[1]
+            print("url for misystem is %s"%items[1])
         elif items[0] == "result":              # 結果取得(True/False)
             result = items[1]
         elif items[0] == "siteid":              # site id(e.g. site00002)
             siteid = items[1]
+            print("siteid is %s"%items[1])
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
+    # token指定が無い場合ログイン情報取得
+    if token is None and url is not None:
+        #print("予測モデルを取得する側のログイン情報入力")
+        if sys.version_info[0] <= 2:
+            name = raw_input("ログインID: ")
+        else:
+            name = input("ログインID: ")
+        password = getpass("パスワード: ")
+
+        ret, uid, token = openam_operator.miauth(url, name, password)
+        if ret is False:
+            print(uid.json())
+            print("ログインに失敗しました。")
+
     if token is None or workflow_id is None or url is None or siteid is None:
         print("Usage")
-        print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL siteid:sitexxxxx"%(sys.argv[0]))
+        print("   $ python %s workflow_id:Mxxxx [token:yyyy] misystem:URL siteid:sitexxxxx"%(sys.argv[0]))
         print("          workflow_id : Mで始まる16桁のワークフローID")
         print("               token  : 64文字のAPIトークン")
         print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
         print("              siteid  : siteで＋５桁の数字。site00002など")
         sys.exit(1)
 
-    ret = get_runlist(token, url, siteid, workflow_id)
-    print(ret)
+    retval, res = get_runlist(token, url, siteid, workflow_id)
+    if retval is False:
+        sys.exit(1)
+    for item in res:
+        print("RunID : %s"%item["run_id"])
+        print("               開始 : %s"%item["start"].strftime("%Y/%m/%d %H:%M:%S"))
+        print("               終了 : %s"%item["end"].strftime("%Y/%m/%d %H:%M:%S"))
+        print("         ステータス : %s"%item["status"])
+        print("        ラン詳細URL : https://%s/workflow/runs/%s"%(url, int(item["run_id"].split("/")[-1][1:])))
+        uuid = item["uuid"].split("/")[-1].replace("-", "")
+        dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
+        print("  実行時ディレクトリ: %s"%dirname)
 
 if __name__ == '__main__':
     main()
