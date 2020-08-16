@@ -10,6 +10,7 @@ import requests
 import json
 import datetime
 import base64
+import warnings
 
 class timeout_object(object):
     '''
@@ -24,10 +25,31 @@ class timeout_object(object):
         self.status_code = None
         self.text = "Timeout"
 
+def getRunUUID(run_id):
+    '''
+    DBからrun_idに対応する内部ランID（internal_run_id）を取得する。
+    '''
+
+    db=mysql.connector.connect(host="127.0.0.1", user="root", password="P@ssw0rd")
+    cursor = db.cursor()
+
+def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
+    '''
+    API呼び出し
+    2020/08/17: Y.Manaka 関数名変更のためラッパーを作成する
+    '''
+
+    return nodeREDWorkflowAPI(token, weburl, params, invdata, json, method, timeout, error_print)
+
+    # ヘッダー
 def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
     '''
     API呼び出し
     '''
+
+    # 2020/08/17 半年後くらいをめどに削除予定なのでメッセージを埋め込む
+　  warn_msg = "`nodeREDWorkflowAPI`関数は2020年度中に削除予定です。"
+    warnings.warn(warn_msg, UserWarning)
 
     # ヘッダー
     headers = {'Authorization': 'Bearer ' + token,
