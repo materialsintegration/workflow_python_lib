@@ -23,11 +23,6 @@ except:
     has_mysql = False
 from common_lib import *
 from workflow_params import *
-if os.name == "nt":
-    import openam_operator
-else:
-    from openam_operator import openam_operator     # MIシステム認証ライブラリ
-from getpass import getpass
 
 prev_workflow_id = None
 input_ports_prev = None
@@ -82,13 +77,14 @@ def getJstDatetime(utc_time):
     s = int(hhmmss.split(":")[2].split(".")[0])
     return datetime.datetime(Y, M, D, h, m, s)
 
-def get_runlist(token, url, siteid, workflow_id):
+def get_runlist(token, url, siteid, workflow_id, only_runlist=False):
     '''
     ラン詳細の取得
     @param token (string) APIトークン
     @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
     @param siteid (string) サイトID。e.g. site00002
     @param workflow_id (string) ワークフローID。e.g. W000020000000197
+    @param only_runlist (bool) Trueの場合、ラン一覧で得られる情報のみを返す。ラン詳細までは返さない。
     '''
 
     weburl = "https://%s:50443/workflow-api/v3/runs?workflow_id=%s"%(url, workflow_id)
@@ -101,8 +97,21 @@ def get_runlist(token, url, siteid, workflow_id):
         time.sleep(120)
         print(res.text)
         return False, res
+
     runs = res.json()["runs"]
     run_lists = []
+
+    # 2020/08/17追加
+    if only_runlist is True:
+        for item in runs:
+            if ("description" in item) is True:
+                description = item["description"]
+            else:
+                description = ""
+            run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description}
+            run_lists.append(run_info)
+        return True, run_lists
+
     for item in runs:
         #if item["workflow_id"].split("/")[-1] == workflow_id:
         #    if ("description" in item) is True:
@@ -175,14 +184,9 @@ def main():
 
     # token指定が無い場合ログイン情報取得
     if token is None and url is not None:
-        #print("予測モデルを取得する側のログイン情報入力")
-        if sys.version_info[0] <= 2:
-            name = raw_input("ログインID: ")
-        else:
-            name = input("ログインID: ")
-        password = getpass("パスワード: ")
 
-        ret, uid, token = openam_operator.miauth(url, name, password)
+        ret, uid, token = getAuthInfo(url)
+
         if ret is False:
             print(uid.json())
             print("ログインに失敗しました。")
