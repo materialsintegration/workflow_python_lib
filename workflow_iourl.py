@@ -128,8 +128,14 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             sys.stderr.write("response contentes for input for workflow\n")
             sys.stderr.write("%s\n"%json.dumps(workflow_inputs, indent=2, ensure_ascii=False))
         for item in workflow_inputs:
-            param_name = item["parameter_name"].split("_")[0]
-            #io_dict[runid][item["parameter_name"]] = [item["file_path"], item["file_size"]]
+            #param_name = item["parameter_name"].split("_")[0]
+            params = item["parameter_name"].split("_")
+            param_name = ""
+            for i in range(0, len(params) - 1):
+                if i == 0:
+                    param_name = params[i]
+                else:
+                    param_name += "_" + params[i]
             if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                 io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
@@ -143,7 +149,13 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             sys.stderr.write("%s\n"%json.dumps(workflow_outputs, indent=2, ensure_ascii=False))
         for item in workflow_outputs:
             #param_name = item["parameter_name"].split("_")[0]
-            param_name = item["parameter_name"].split("_")[0]
+            params = item["parameter_name"].split("_")
+            param_name = ""
+            for i in range(0, len(params) - 1):
+                if i == 0:
+                    param_name = params[i]
+                else:
+                    param_name += "_" + params[i]
             if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                 io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
