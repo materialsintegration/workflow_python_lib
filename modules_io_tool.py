@@ -14,7 +14,7 @@ if os.name == "nt":
     import openam_operator
 else:
     from openam_operator import openam_operator     # MIシステム認証ライブラリ
-from openam_operator import openam_operator
+#from openam_operator import openam_operator
 from getpass import getpass
 import json
 import requests
