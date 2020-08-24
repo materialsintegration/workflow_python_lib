@@ -11,6 +11,11 @@ import json
 import datetime
 import base64
 import warnings
+if os.name == "nt":
+    import openam_operator
+else:
+    from openam_operator import openam_operator     # MIシステム認証ライブラリ
+from getpass import getpass
 
 class timeout_object(object):
     '''
@@ -33,6 +38,25 @@ def getRunUUID(run_id):
     db=mysql.connector.connect(host="127.0.0.1", user="root", password="P@ssw0rd")
     cursor = db.cursor()
 
+def getAuthInfo(url=None):
+    '''
+    ログイン関数
+    '''
+
+    if url is None:
+        return False, None, "{'message':'URLが指定されていません'}"
+
+    #print("予測モデルを取得する側のログイン情報入力")
+    if sys.version_info[0] <= 2:
+        name = raw_input("ログインID: ")
+    else:
+        name = input("ログインID: ")
+    password = getpass("パスワード: ")
+
+    ret, uid, token = openam_operator.miauth(url, name, password)
+
+    return ret, uid, token
+
 def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
     '''
     API呼び出し
@@ -48,7 +72,7 @@ def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, meth
     '''
 
     # 2020/08/17 半年後くらいをめどに削除予定なのでメッセージを埋め込む
-　  warn_msg = "`nodeREDWorkflowAPI`関数は2020年度中に削除予定です。"
+    warn_msg = "`nodeREDWorkflowAPI`関数は2020年度中に削除予定です。"
     warnings.warn(warn_msg, UserWarning)
 
     # ヘッダー
