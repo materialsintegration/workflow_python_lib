@@ -56,7 +56,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002"):
+def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None):
     '''
     ワークフロー実行
     @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
@@ -97,16 +97,19 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     # Runパラメータの構築
     run_params = {}
     run_params["description"] = "API経由ワークフロー実行 %s\n\n"%datetime.datetime.now()
-    run_params["description"] += "parameter\n"
-    for item in input_params:
-        if input_params[item] == "initial_setting.dat":
-            continue
-        if mimetypes.guess_type(input_params[item])[1] != "None":
-            continue
-        run_params["description"] += "%-20s:"%item
-        infile = open(input_params[item])
-        value = "%s"%infile.read().split("\n")[0]
-        run_params["description"] += "%s\n"%value
+    if description is None:
+        run_params["description"] += "parameter\n"
+        for item in input_params:
+            if input_params[item] == "initial_setting.dat":
+                continue
+            if mimetypes.guess_type(input_params[item])[1] != "None":
+                continue
+            run_params["description"] += "%-20s:"%item
+            infile = open(input_params[item])
+            value = "%s"%infile.read().split("\n")[0]
+            run_params["description"] += "%s\n"%value
+    else:
+        run_params["description"] = "%s\n"%description
     workflow_params =[]
     for input_item in input_params:
         target_item = None
@@ -134,6 +137,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     
     # ワークフローの実行
     retry_count = 0
+    outfile = open(logfile, "a")
     while True:
         #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
         weburl = api_url%(url)
@@ -146,12 +150,16 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 sys.stderr.write("%s - 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
             elif res.status_code == 400:
                 sys.stderr.write("%s - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
+                outfile.write("\n%s - - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
+                outfile.close()
                 return
             else:
                 sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
             if number == "-1":
                 if retry_count == 1:
                     sys.stderr.write("%s - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    outfile.write("%s - - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    outfile.close()
                     return
                 else:
                     retry_count += 1
@@ -174,12 +182,11 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             #runid = "http://sipmi.org/workflow/runs/R000010000000403"
             runid = runid.split("/")[-1]
             #print("%s - ワークフロー実行中（%s）"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
-            sys.stderr.write("%s - ワークフロー実行中（%s）\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
-            sys.stderr.flush()
+            sys.stdout.write("%s - ワークフロー実行中（%s）\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
+            sys.stdout.flush()
             url_runid = int(runid[1:])
-            sys.stderr.write("%s - ラン詳細ページ  https://%s/workflow/runs/%s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), url, url_runid))
-            sys.stderr.flush()
-            outfile = open(logfile, "a")
+            sys.stdout.write("%s - ラン詳細ページ  https://%s/workflow/runs/%s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), url, url_runid))
+            sys.stdout.flush()
             outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             for item in input_params:
                 if input_params[item] == "initial_setting.dat":
@@ -192,8 +199,9 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 infile = open(input_params[item])
                 value = infile.read().split("\n")[0]
                 outfile.write("%s=%s,"%(item, value))
-            outfile.write("\n")
-            outfile.close()
+                infile.close()
+            #outfile.write("\n")
+            #outfile.close()
             #status_out("ワークフロー実行中（%s）"%runid)
             if number != "-1":
                 return
@@ -220,8 +228,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
         if working_dir is None and ("gpdb_url" in retval) is True:
             uuid = retval["gpdb_url"].split("/")[-1].replace("-", "")
             dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
-            sys.stderr.write("%s - 実行ディレクトリ %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), dirname))
-            sys.stderr.flush()
+            sys.stdout.write("%s - 実行ディレクトリ %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), dirname))
+            sys.stdout.flush()
             working_dir = dirname
         if retval["status"] == "running" or retval["status"] == "waiting" or retval["status"] == "paused":
             # タイムアウト判定用の開始時間(wating=TorqueによるQueue待ち時間を除くため)
@@ -233,17 +241,22 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 if estimated > timeout: 
                     sys.stderr.write("%s - 実行中のままタイムアウト時間を越えました。(%d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
                     sys.stderr.flush()
+                    outfile.write(" 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+                    outfile.close()
                     sys.exit(1)
             pass
         elif retval["status"] == "abend" or retval["status"] == "canceled":
             if retval["status"] == "abend":
                 sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
+                outfile.write(" ランが異常終了しました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
             else:
                 sys.stderr.write("%s - ランがキャンセルされました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
+                outfile.write(" ランがキャンセルされました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
             get_rundetail(token, url, siteid, runid, False, tool_names, False)
+            outfile.close()
             sys.exit(1)
         else:
             #print("ラン実行ステータスが%sに変化したのを確認しました"%retval["status"])
@@ -252,6 +265,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if retval["status"] != "completed":
                 sys.stderr.write("%s - ランは正常終了しませんでした。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 sys.stderr.flush()
+                outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+                outfile.close()
                 sys.exit(1)
                 get_rundetail(token, url, siteid, runid, False, tool_names, False)
             break
@@ -259,8 +274,10 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
         time.sleep(5)      # 問い合わせ間隔30秒
     #
     #print("ワークフロー実行終了")
-    sys.stderr.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-    sys.stderr.flush()
+    sys.stdout.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+    sys.stdout.flush()
+    outfile.write(" ワークフロー実行終了(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+    outfile.close()
     
     #time.sleep(10)
     # 結果ファイルの取得
@@ -323,7 +340,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             continue
         # ここまでくれば情報取得成功？
         break
-        
+
     for tool in wf_tools:
         tool_outputs = tool["tool_outputs"]
         for item in tool_outputs:
@@ -332,8 +349,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             #print("outputfile:%s"%item["file_path"])
             #sys.stderr.write("file size = %s\n"%item["file_size"])
             weburl = item["file_path"]
-            sys.stderr.write("%s - %s 取得中...\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item["parameter_name"]))
-            sys.stderr.flush()
+            sys.stdout.write("%s - %s 取得中...\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item["parameter_name"]))
+            sys.stdout.flush()
             # sile_sizeが無いポートの対処
             if ("file_size" in item) is False:
                 sys.stderr.write("%s - ファイルサイズが取得できないので、ファイルを取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -376,17 +393,17 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 sys.stderr.flush()
                 continue
             try:
-                outfile = open(filename, "wb")
+                outputfile = open(filename, "wb")
                 #outfile.write("%s"%res.text)
-                outfile.write(res.content)
-                outfile.close()
+                outputfile.write(res.content)
+                outputfile.close()
             except:
                 sys.stderr.write("%s\n"%traceback.format_exc())
                 sys.stderr.write("%sのファイルの保存に失敗しました\n"%item["parameter_name"])
                 sys.stderr.write("file size = %s\n"%item["file_size"])
                 sys.stderr.flush()
-            sys.stderr.write("%s:%s\n"%(item["parameter_name"], filename))
-            sys.stderr.flush()
+            sys.stdout.write("%s:%s\n"%(item["parameter_name"], filename))
+            sys.stdout.flush()
             #print("%s:%s"%(item["parameter_name"], filename))
             #print("%s:%s"%(item["parameter_name"], res.text))
             get_file = True
@@ -465,6 +482,7 @@ def main():
     number = "-1"
     timeout = None
     siteid = "site00002"
+    description = None
     global STOP_FLAG
 
     for items in sys.argv:
@@ -489,6 +507,8 @@ def main():
                 timeout = None
         elif items[0] == "siteid":              # site ID
             siteid = items[1]
+        elif items[0] == "description":         # 説明
+            description = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -501,6 +521,7 @@ def main():
         print("    <port-name>:<filename for port> : ポート名とそれに対応するファイル名を必要な数だけ。")
         print("                      : 必要なポート名はworkflow_params.pyで取得する。")
         print("              timeout : 連続実行でない場合に、実行中のままこの時間（秒指定）を越えた場合に、キャンセルして終了する。")
+        print("          description : ランの説明に記入する文章。")
         sys.exit(1)
 
     '''
@@ -540,7 +561,7 @@ def main():
             else:
                 wait_running_number(url, token, number)
             print("\n------ %06s -------"%i)
-        workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid)
+        workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description)
         time.sleep(1.0)
         if number == "-1":
             break
