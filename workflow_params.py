@@ -38,7 +38,7 @@ def extract_workflow_params(workflow_id, token, url):
     retry_count = 0
     while True:
         weburl = "https://%s:50443/workflow-api/v3/workflows/%s"%(url, workflow_id)
-        res = nodeREDWorkflowAPI(token, weburl)
+        res = mintWorkflowAPI(token, weburl)
 
         retry_count += 1
         if res.status_code != 200 and res.status_code != 201:

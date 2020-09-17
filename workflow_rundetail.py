@@ -61,7 +61,7 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     '''
 
     weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
-    res = nodeREDWorkflowAPI(token, weburl)
+    res = mintWorkflowAPI(token, weburl)
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         sys.stderr.write("%s - 異常な終了コードを受信しました(%d)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
         time.sleep(120)
@@ -93,9 +93,9 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
             # ツール標準出力の取得
             weburl = "https://%s:50443/workflow-api/v2/runs/%s/tools?tool=%s"%(url, runid, tool_name)
             sys.stderr.write("%s\n"%weburl)
-            res = nodeREDWorkflowAPI(token, weburl)
+            res = mintWorkflowAPI(token, weburl)
             if res.text != "":
-                filename = "%s_stdout.log"%tool_name
+                filename = "%s_%s_stdout.log"%(runid, tool_name)
                 outfile = open(filename, "w")
                 outfile.write("stdout contents of tool name %s --------------------\n"%tool_name)
                 #sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
@@ -125,7 +125,7 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     while True:
         if STOP_FLAG is True:
             sys.exit(1)
-        res = nodeREDWorkflowAPI(token, weburl)
+        res = mintWorkflowAPI(token, weburl)
         if res.status_code != 200 and res.status_code != 201:
             if retry_count == 5:
                 sys.stderr.write("%s - 結果取得失敗。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -163,7 +163,7 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
                 #print("outputfile:%s"%item["file_path"])
                 #sys.stderr.write("file size = %s\n"%item["file_size"])
                 weburl = item["file_path"]
-                res = nodeREDWorkflowAPI(token, weburl, method="get_noheader")
+                res = mintWorkflowAPI(token, weburl, method="get_noheader")
                 try:
                     outfile = open(filename, "w")
                     outfile.write("%s"%res.text)

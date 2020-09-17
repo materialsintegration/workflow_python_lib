@@ -57,23 +57,22 @@ def getAuthInfo(url=None):
 
     return ret, uid, token
 
-def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
+def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
     '''
     API呼び出し
     2020/08/17: Y.Manaka 関数名変更のためラッパーを作成する
     '''
 
-    return nodeREDWorkflowAPI(token, weburl, params, invdata, json, method, timeout, error_print)
+    # 2020/08/17 半年後くらいをめどに削除予定なのでメッセージを埋め込む
+    warn_msg = "`nodeREDWorkflowAPI`関数は2020年度中に削除予定です。\n変わりに mintWorkflowAPIを使ってください。"
+    warnings.warn(warn_msg, UserWarning)
 
-    # ヘッダー
-def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
+    return mintWorkflowAPI(token, weburl, params, invdata, json, method, timeout, error_print)
+
+def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
     '''
     API呼び出し
     '''
-
-    # 2020/08/17 半年後くらいをめどに削除予定なのでメッセージを埋め込む
-    warn_msg = "`nodeREDWorkflowAPI`関数は2020年度中に削除予定です。"
-    warnings.warn(warn_msg, UserWarning)
 
     # ヘッダー
     headers = {'Authorization': 'Bearer ' + token,

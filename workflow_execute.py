@@ -90,7 +90,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     tool_names = []
     for item in miwf_contents:
         if ("category" in item) is True:
-            if item["category"] == "module":
+            if item["category"] == "module" or item["category"] == "workflow":
                 if ("name" in item) is True:
                     tool_names.append(item["name"])
 
@@ -142,7 +142,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
         #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
         weburl = api_url%(url)
         params = {"workflow_id":"%s"%workflow_id}
-        res = nodeREDWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(300.0, 300.0), error_print=False)
+        res = mintWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(300.0, 300.0), error_print=False)
         
         # 実行の可否
         if res.status_code != 200 and res.status_code != 201:
@@ -184,6 +184,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             #print("%s - ワークフロー実行中（%s）"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             sys.stdout.write("%s - ワークフロー実行中（%s）\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             sys.stdout.flush()
+            sys.stderr.write("%s\n"%runid)
+            sys.stderr.flush()
             url_runid = int(runid[1:])
             sys.stdout.write("%s - ラン詳細ページ  https://%s/workflow/runs/%s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), url, url_runid))
             sys.stdout.flush()
@@ -214,7 +216,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     weburl = api_url%url + "/" + runid
     #print("ワークフロー実行中...")
     while True:
-        res = nodeREDWorkflowAPI(token, weburl)
+        res = mintWorkflowAPI(token, weburl)
         if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
             if res.status_code is None:         # タイムアウトだった
                 sys.stderr.write("%s - タイムアウトしました。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
@@ -260,8 +262,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             sys.exit(1)
         else:
             #print("ラン実行ステータスが%sに変化したのを確認しました"%retval["status"])
-            sys.stderr.write("%s - ラン実行ステータスが%sに変化したのを確認しました\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), retval["status"]))
-            sys.stderr.flush()
+            sys.stdout.write("%s - ラン実行ステータスが%sに変化したのを確認しました\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), retval["status"]))
+            sys.stdout.flush()
             if retval["status"] != "completed":
                 sys.stderr.write("%s - ランは正常終了しませんでした。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 sys.stderr.flush()
@@ -288,7 +290,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     while True:
         if STOP_FLAG is True:
             sys.exit(1)
-        res = nodeREDWorkflowAPI(token, weburl)
+        res = mintWorkflowAPI(token, weburl)
         if res.status_code != 200 and res.status_code != 201:
             if res.status_code is None:         # タイムアウトだった
                 sys.stderr.write("%s - タイムアウトしました。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
@@ -374,7 +376,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             while True:
                 try:
                     timeout = (10.0, 600.0)
-                    res = nodeREDWorkflowAPI(token, weburl, method="get_noheader", timeout=timeout)
+                    res = mintWorkflowAPI(token, weburl, method="get_noheader", timeout=timeout)
                 except MemoryError:
                     sys.stderr.write("%s\n"%traceback.format_exc())
                     sys.stderr.write("%s - ファイルの取得に失敗しました(MemoryError)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
