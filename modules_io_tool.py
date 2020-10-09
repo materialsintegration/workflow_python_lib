@@ -159,8 +159,8 @@ def main():
             misystem = items[1]
         elif items[0] == "help":
             go_help = True
-        else:
-            modules_filename = item
+        #else:
+        #    modules_filename = item
 
     print(str(predictions))
     print(modules_filename)
