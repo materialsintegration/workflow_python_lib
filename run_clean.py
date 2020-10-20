@@ -62,7 +62,7 @@ def main():
             print("%s - ランは異常終了しています。"%run_id["start"])
         elif run_id["status"] == "canceled":
             print("%s - ランはキャンセルされてます。"%run_id["completion"])
-        elif run_id["status"] == "failed":
+        elif run_id["status"] == "failure":
             print("%s - ランは起動失敗しています。"%run_id["start"])
         elif run_id["status"] == "completed":
             print("%s - ランは完了しています。"%run_id["completion"])
