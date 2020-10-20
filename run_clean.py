@@ -58,6 +58,16 @@ def main():
     for run_id in run_list:
         sys.stdout.write("run(%s) 情報："%run_id["run_id"],)
         sys.stdout.flush()
+        if run_id["status"] == "abend":
+            print("%s - ランは異常終了しています。"%run_id["completion"])
+        elif run_id["status"] == "canceled":
+            print("%s - ランはキャンセルされてます。"%run_id["completion"])
+        elif run_id["status"] == "failed":
+            print("%s - ランは起動失敗しています。"%run_id["completion"])
+        elif run_id["status"] == "completed":
+            print("%s - ランは完了しています。"%run_id["completion"])
+        else:
+            print("%s - ランは%s状態です。"%(run_id["start"], run_status[run_id["status"]]))
         rundetail = get_rundetail(token, url, siteid, run_id["run_id"])
         #if rundetail["status"] == "abend":
         #    continue
@@ -68,14 +78,6 @@ def main():
         ret = subprocess.check_output(cmd.split())
         amount = ret.decode("utf-8").split("\n")[0]
 
-        if rundetail["status"] == "abend":
-            print("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-        elif rundetail["status"] == "canceled":
-            print("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-        elif rundetail["status"] == "failed":
-            print("%s - ランが起動失敗しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-        else:
-            print("%s - ランは%s状態です。"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), run_status[rundetail["status"]]))
         print("  ディレクトリサイズは %s"%amount)
         print("  %s"%dirname)
 
