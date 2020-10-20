@@ -22,6 +22,8 @@ def main():
     workflow_id = None
     result = False
     global STOP_FLAG
+    run_status = {"completed":"完了",
+                  "waiting":"待機中"}
 
     for items in sys.argv:
         items = items.split(":")
@@ -59,9 +61,14 @@ def main():
         if rundetail["status"] == "abend":
             sys.stderr.write("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
             sys.stderr.flush()
-        if rundetail["status"] == "canceled":
+        elif rundetail["status"] == "canceled":
             sys.stderr.write("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
             sys.stderr.flush()
+        elif rundetail["status"] == "failed":
+            sys.stderr.write("%s - ランが起動失敗しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            sys.stderr.flush()
+        else:
+            print("%s - ランは%s状態です。"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), run_status[rundetail["statu"]]))
         print(dirname)
 
 if __name__ == '__main__':
