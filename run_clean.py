@@ -24,6 +24,7 @@ def main():
     result = False
     global STOP_FLAG
     run_status = {"completed":"完了",
+                  "running":"実行中",
                   "waiting":"待機中"}
 
     for items in sys.argv:
