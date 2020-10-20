@@ -13,6 +13,7 @@ import datetime
 sys.path.append("/home/misystem/assets/modules/workflow_python_lib")
 from workflow_runlist import *
 from workflow_rundetail import *
+from openam_operator import openam_operator
 
 def main():
     '''
@@ -43,10 +44,14 @@ def main():
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
-    ret = get_runlist(token, url, siteid, workflow_id)
+    if token is None:
+        uid, token = openam_operator.miLogin(url, "ログイン情報入力")
+
+    retval, run_list = get_runlist(token, url, siteid, workflow_id, True)
     cmd = "du -sh"
-    for run_id in ret:
-        sys.stdout.write("run(%s) 容量："%run_id["run_id"])
+    for run_id in run_list:
+        sys.stdout.write("run(%s) 情報："%run_id["run_id"],)
+        sys.stdout.flush()
         rundetail = get_rundetail(token, url, siteid, run_id["run_id"])
         #if rundetail["status"] == "abend":
         #    continue
@@ -57,19 +62,16 @@ def main():
         ret = subprocess.check_output(cmd.split())
         amount = ret.decode("utf-8").split("\n")[0]
 
-        print("ディレクトリサイズは %s"%amount)
         if rundetail["status"] == "abend":
-            sys.stderr.write("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-            sys.stderr.flush()
+            print("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         elif rundetail["status"] == "canceled":
-            sys.stderr.write("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-            sys.stderr.flush()
+            print("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         elif rundetail["status"] == "failed":
-            sys.stderr.write("%s - ランが起動失敗しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-            sys.stderr.flush()
+            print("%s - ランが起動失敗しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         else:
-            print("%s - ランは%s状態です。"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), run_status[rundetail["statu"]]))
-        print(dirname)
+            print("%s - ランは%s状態です。"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), run_status[rundetail["status"]]))
+        print("  ディレクトリサイズは %s"%amount)
+        print("  %s"%dirname)
 
 if __name__ == '__main__':
     main()
