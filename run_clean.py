@@ -49,6 +49,11 @@ def main():
 
     retval, run_list = get_runlist(token, url, siteid, workflow_id, True)
     cmd = "du -sh"
+    if retval is False:
+        sys.stderr.write("url : %s\nresponse : %s\n"%(url, run_list.text))
+        sys.stderr.flush()
+        return "url : %s\nresponse : %s"%(url, run_list.text)
+
     for run_id in run_list:
         sys.stdout.write("run(%s) 情報："%run_id["run_id"],)
         sys.stdout.flush()
