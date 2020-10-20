@@ -59,11 +59,11 @@ def main():
         sys.stdout.write("run(%s) 情報："%run_id["run_id"],)
         sys.stdout.flush()
         if run_id["status"] == "abend":
-            print("%s - ランは異常終了しています。"%run_id["completion"])
+            print("%s - ランは異常終了しています。"%run_id["start"])
         elif run_id["status"] == "canceled":
             print("%s - ランはキャンセルされてます。"%run_id["completion"])
         elif run_id["status"] == "failed":
-            print("%s - ランは起動失敗しています。"%run_id["completion"])
+            print("%s - ランは起動失敗しています。"%run_id["start"])
         elif run_id["status"] == "completed":
             print("%s - ランは完了しています。"%run_id["completion"])
         else:
