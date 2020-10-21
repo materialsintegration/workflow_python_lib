@@ -29,7 +29,7 @@ input_ports_prev = None
 output_ports_prev = None
 STOP_FLAG = False
 
-DB_RUN_STATUS={"1":"completed",
+DB_RUN_STATUS={"1":"running",
                "2":"waiting",
                "3":"canceled",
                "4":"paused",
