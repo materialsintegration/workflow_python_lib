@@ -113,7 +113,7 @@ def get_runlist_fromDB(siteid, workflow_id, only_runlist=False):
     run_lists = []
     for item in rows:
         run_info = {}
-        run_info["run_id"] = item[0]
+        run_info["run_id"] = "R%015d"%item[0]
         run_info["status"] = DB_RUN_STATUS[str(item[6])]
         run_info["description"] = item[3]
         run_info["start"] = item[19]
