@@ -121,6 +121,7 @@ def get_runlist_fromDB(siteid, workflow_id, only_runlist=False):
         run_info["completion"] = item[10]
         run_info["workflow_name"] = ""
         run_info["uuid"] = item[5]
+        run_info["deleted"] = str(item[15])
         run_lists.append(run_info)
 
     return True, run_lists
@@ -156,7 +157,7 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False):
                 description = item["description"]
             else:
                 description = ""
-            run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description, "start":getJstDatetime(item["creation_time"]), "workflow_name":item["workflow_name"]}
+            run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description, "start":getJstDatetime(item["creation_time"]), "workflow_name":item["workflow_name"], "deleted":"0"}
             if ("completion_time" in item) is True:
                 run_info["completion"] = getJstDatetime(item["completion_time"])
             run_lists.append(run_info)

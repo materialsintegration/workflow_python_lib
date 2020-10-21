@@ -69,12 +69,10 @@ def main():
             print("%s - ランは完了しています。"%run_id["completion"])
         else:
             print("%s - ランは%s状態です。"%(run_id["start"], run_status[run_id["status"]]))
-        rundetail = get_rundetail(token, url, siteid, run_id["run_id"])
-        #if rundetail["status"] == "abend":
-        #    continue
-        if rundetail is False:
+        if run_id["deteled"] == "1":
             uuid = run_id["uuid"]
         else:
+            rundetail = get_rundetail(token, url, siteid, run_id["run_id"])
             uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
         #dirname = os.path.join("/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32]), "W000020000000197/W000020000000197_ＮｉーＡｌのγ’析出組織形成（等温時効）_02")
         dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
