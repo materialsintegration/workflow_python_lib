@@ -64,6 +64,9 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     res = mintWorkflowAPI(token, weburl)
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         sys.stderr.write("%s - 異常な終了コードを受信しました(%d)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+        if res.status_code == 404 and res.json()["error"][0]["code"] == "0050":
+            sys.stderr.write("%s - ランは削除されています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")) 
+            return False
         time.sleep(120)
         sys.exit(1)
     retval = res.json()
