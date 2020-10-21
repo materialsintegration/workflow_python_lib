@@ -60,11 +60,11 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     @param tool_names (list) リストされたツールのstdout取得
     '''
 
-    weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
+    weburl = "https://%s:50443/workflow-api/v3/runs/%s"%(url, runid)
     res = mintWorkflowAPI(token, weburl)
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         sys.stderr.write("%s - 異常な終了コードを受信しました(%d)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
-        if res.status_code == 404 and res.json()["error"][0]["code"] == "0050":
+        if res.status_code == 404 and res.json()["errors"][0]["code"] == "0050":
             sys.stderr.write("%s - ランは削除されています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")) 
             return False
         time.sleep(120)
@@ -94,7 +94,7 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
         for tool_name in tool_names:
             #tool_name = "%s_%s"%(workflow_id, tool_name)
             # ツール標準出力の取得
-            weburl = "https://%s:50443/workflow-api/v2/runs/%s/tools?tool=%s"%(url, runid, tool_name)
+            weburl = "https://%s:50443/workflow-api/v3/runs/%s/tools?tool=%s"%(url, runid, tool_name)
             sys.stderr.write("%s\n"%weburl)
             res = mintWorkflowAPI(token, weburl)
             if res.text != "":
@@ -122,7 +122,7 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
         return retval
 
     # 結果ファイルの取得
-    weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
+    weburl = "https://%s:50443/workflow-api/v3/runs/%s/data"%(url, runid)
     os.mkdir("/tmp/%s"%runid)
     retry_count = 0
     while True:
