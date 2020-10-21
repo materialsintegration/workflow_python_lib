@@ -29,6 +29,14 @@ input_ports_prev = None
 output_ports_prev = None
 STOP_FLAG = False
 
+DB_RUN_STATUS={"1":"completed",
+               "2":"waiting",
+               "3":"canceled",
+               "4":"paused",
+               "5":"completed",
+               "9":"failure",
+               "99":"abend"}
+
 def signal_handler(signum, frame):
     '''
     '''
@@ -76,6 +84,46 @@ def getJstDatetime(utc_time):
     m = int(hhmmss.split(":")[1])
     s = int(hhmmss.split(":")[2].split(".")[0])
     return datetime.datetime(Y, M, D, h, m, s)
+
+def get_runlist_fromDB(siteid, workflow_id, only_runlist=False):
+    '''
+    DBから直接ラン詳細の取得
+    @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param siteid (string) サイトID。e.g. site00002
+    @param workflow_id (string) ワークフローID。e.g. W000020000000197
+    @param only_runlist (bool) Trueの場合、ラン一覧で得られる情報のみを返す。ラン詳細までは返さない。
+    '''
+
+    global has_mysql
+
+    if has_mysql is False:
+        return False, "DB接続方法を持ち合わせていません。"
+
+    site_id = int(siteid[5:])
+    w_id = "%d%s"%(site_id, workflow_id[6:])
+
+    db = mysql.connector.connect(host="127.0.0.1", user="root", password="P@ssw0rd")
+    cursor = db.cursor()
+    cursor.execute("use workflow")
+    cursor.execute("""select * from workflow.run where workflow_id='""" + w_id + """';""")
+    rows = cursor.fetchall()
+    cursor.close()
+    db.close()
+
+    run_lists = []
+    for item in rows:
+        run_info = {}
+        run_info["run_id"] = item[0]
+        run_info["status"] = DB_RUN_STATUS[item[6]]
+        run_info["description"] = item[3]
+        run_info["start"] = item[19]
+        run_info["end"] = item[20]
+        run_info["completion"] = item[10]
+        run_info["workflow_name"] = ""
+        run_info["uuid"] = item[5]
+        run_lists.append(run_info)
+
+    return True, run_lists
 
 def get_runlist(token, url, siteid, workflow_id, only_runlist=False):
     '''

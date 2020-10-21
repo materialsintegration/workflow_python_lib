@@ -48,7 +48,8 @@ def main():
     if token is None:
         uid, token = openam_operator.miLogin(url, "ログイン情報入力")
 
-    retval, run_list = get_runlist(token, url, siteid, workflow_id, True)
+    #retval, run_list = get_runlist(token, url, siteid, workflow_id, True)
+    retval, run_list = get_runlist_fromDB(url, siteid, workflow_id, True)
     cmd = "du -sh"
     if retval is False:
         sys.stderr.write("url : %s\nresponse : %s\n"%(url, run_list.text))
