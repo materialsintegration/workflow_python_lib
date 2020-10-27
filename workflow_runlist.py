@@ -85,7 +85,7 @@ def getJstDatetime(utc_time):
     s = int(hhmmss.split(":")[2].split(".")[0])
     return datetime.datetime(Y, M, D, h, m, s)
 
-def get_runlist_fromDB(siteid, workflow_id, only_runlist=False):
+def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=False):
     '''
     DBから直接ラン詳細の取得
     @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
@@ -102,7 +102,7 @@ def get_runlist_fromDB(siteid, workflow_id, only_runlist=False):
     site_id = int(siteid[5:])
     w_id = "%d%s"%(site_id, workflow_id[6:])
 
-    db = mysql.connector.connect(host="127.0.0.1", user="root", password="P@ssw0rd")
+    db = mysql.connector.connect(host=hostID, user="root", password="P@ssw0rd")
     cursor = db.cursor()
     cursor.execute("use workflow")
     cursor.execute("""select * from workflow.run where workflow_id='""" + w_id + """';""")

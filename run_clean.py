@@ -48,8 +48,13 @@ def main():
     if token is None:
         uid, token = openam_operator.miLogin(url, "ログイン情報入力")
 
+    if url == "nims.mintsys.jp" or url == "u-tokyo.mintsys.jp":
+        hostid = "192.168.1.242"
+    elif url == "dev-u-tokyo.mintsys.jp":
+        hostid = "192.168.1.142"
+
     #retval, run_list = get_runlist(token, url, siteid, workflow_id, True)
-    retval, run_list = get_runlist_fromDB(siteid, workflow_id, True)
+    retval, run_list = get_runlist_fromDB(siteid, workflow_id, hostid, True)
     cmd = "du -sh"
     if retval is False:
         sys.stderr.write("url : %s\nresponse : %s\n"%(url, run_list.text))
