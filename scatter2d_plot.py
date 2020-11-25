@@ -171,7 +171,7 @@ def main():
     '''
 
     if len(sys.argv) < 4:
-        print("python $s <input csv> <for x axis column,,,> <for y axis column,,,> [seperate char] [title]")
+        print("python %s <input csv> <for x axis column,,,> <for y axis column,,,> [seperate char] [title]"%sys.argv[0])
         sys.exit(1)
 
     filename = sys.argv[1]
