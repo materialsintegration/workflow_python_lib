@@ -633,10 +633,11 @@ class erfh5Object(object):
                 for tag2 in self.hdf_object[item]:
                     if tag2 == "erfheader":
                         continue
+                    ths = {}
                     for tag3 in self.hdf_object[item][tag2]:
                         #if tag3 != "state000000000009" and tag3 != "state000000000006":
                         #    continue
-                        tag3xmlfile = "%s_%s.xml"%(tag2, tag3)
+                        tag3xmlfile = "%s_%s_%s.xml"%(root_tag, tag2, tag3)
                         tags = []
                         tags.append(tag2)
                         tags.append(tag3)
@@ -654,32 +655,34 @@ class erfh5Object(object):
                         #ths.append(t)
                         time.sleep(2.0)
 
+                    # スレッドの待ち合わせ
+                    sys.stderr.write("waiting thread process\n")
+                    sys.stderr.flush()
+                    for th in ths:
+                        ths[th].join()
+            
+                    sys.stderr.write("all thread process ended.\n")
+                    sys.stderr.flush()
+            
+                    # ファイルの取り出しと、本体への合流
+                    for th in ths:
+                        xml_file_name = "%s_%s_%s.xml"%(item, th.split(":")[0], th.split(":")[1])
+                        infile = open(xml_file_name, "r")
+                        erfh5_xml_object.write(infile.read())
+                        infile.close()
+            
+                    # 本体作成後部分ファイルは削除
+                    #for th in ths:
+                    #    xml_file_name = "%s_%s.xml"%(th.split(":")[0], th.split(":")[1])
+                    #    os.remove(xml_file_name)
+                erfh5_xml_object.write('</%s>\n'%item)
+            
             if self.tag_print is True:
                 print('</%s>'%item)
     
-        # スレッドの待ち合わせ
-        sys.stderr.write("waiting thread process\n")
-        sys.stderr.flush()
-        for th in ths:
-            ths[th].join()
-
-        sys.stderr.write("all thread process ended.\n")
-        sys.stderr.flush()
-
-        # ファイルの取り出しと、本体への合流
-        for th in ths:
-            xml_file_name = "%s_%s.xml"%(th.split(":")[0], th.split(":")[1])
-            infile = open(xml_file_name, "r")
-            erfh5_xml_object.write(infile.read())
-            infile.close()
-
         erfh5_xml_object.write('</%s>\n'%root_tag)
         erfh5_xml_object.close()
-
-        # 本体作成後部分ファイルは削除
-        for th in ths:
-            xml_file_name = "%s_%s.xml"%(th.split(":")[0], th.split(":")[1])
-            os.remove(xml_file_name)
+            
 
         sys.stderr.write("xml file created.\n")
         sys.stderr.flush()
