@@ -390,6 +390,7 @@ class MIApiCommandClass(object):
         if cmd is None:
             raise Exception("There is no execute command.")
 
+        print('%s exec command in %s'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), os.getcwd()), flush=True)
         print('%s exec command bellow'%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), flush=True)
         print(cmd, flush=True)
         solver_id = str(uuid.uuid4())
