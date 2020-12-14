@@ -53,6 +53,9 @@ class MIApiCommandClass(object):
         self.solver_logfile = None
         self.solver_name = None
         self.solver_id = str(uuid.uuid4())
+        self.myjob_id = "unknown"
+        if ("PBS_JOBID" in os.environ) is True:
+            self.myjob_id = os.environ["PBS_JOBID"]
         # このパッケージを使用した上位プログラムが
         # Torqueに直にジョブを流した時に
         # MIシステムのラン終了でそのジョブが終了出きるように、
@@ -373,6 +376,7 @@ class MIApiCommandClass(object):
         print("%s successfully intialized"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), flush=True)
         print('%s host(%s) / user(%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), subprocess.getoutput('hostname'), subprocess.getoutput('whoami')), flush=True)
         print('%s ulimit -s(%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), subprocess.getoutput('ulimit -s')), flush=True)
+        print('%s pbs jobid(%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), self.myjob_id), flush=True)
         print('%s solver execute log (%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), SOLVER_LOGFILE), flush=True)
         #args = " ".join(sys.argv)
         #print('%s args : %s'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), args))
