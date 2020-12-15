@@ -16,14 +16,20 @@
 * workflow_rundetail.py - ラン詳細を得るスクリプト
 * workflow_runlist.py   - 指定されたワークフローを実行したラン番号のリストを返す。
 * workflow_changest.py  - 指定されたランのステータスを実行中止(canceled)へ変更する。
-* pairgraph.py          - タブ区切りのCSVファイルからペアプロットを作成する。
+* parent_job_servei.sh  - １つ目を親のジョブIDとし、２つめ以降はそこから実行された子のジョブとして監視。親ジョブが終了（ワークフローキャンセルなど）した場合は子のジョブを削除する。
+~~ pairgraph.py          - タブ区切りのCSVファイルからペアプロットを作成する。
   + Thermo-Calc実行スクリプト専用
-  + 要matplotlib、seabornパッケージ
+  + 要matplotlib、seabornパッケージ~~
 
 ※ 対応するpythonのバージョンは3.6以上を想定している。2.6または2.7でも動作可能かもしれないが、保証はしない。
 
 ## 詳細
 各プログラム、ライブラリの詳細と使い方。
+
+### 推奨環境
+* python : 3.6以上（4.xは未確認）
+* パッケージ
+  + requests
 
 ### 共通の使い方　　
 ほぼ全てのプログラムは、以下のパラメータが必要となる。
@@ -369,7 +375,7 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
     '''
   ```
 
-* workflow_iourl.py
+### workflow_iourl.py
 指定したラン番号の入出力ファイルURLの一覧を取得します。
 * 実行  
   実行に必要なパラメータ。
@@ -415,6 +421,39 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
     @retval (dict) {"runID":{"ポート名":[ファイルURL, ファイルサイズ]}}
     '''
   ```
+
+### extract_io_ports.py
+予測モジュールファイルから、common_libを使用して作成した予測モジュール用実行ファイル画必要とする入力ポートおよび出力ポートのエントリ部分を作成する。
+
+* Usage
+```
+Usage python3.6 extract_io_ports.py <prediction_id> <modules.xml> [-c[:前段のモジュール名]]
+
+    バージョン番号は、最新（各数字が最大）のもの
+
+    prediction_id : Pで始まる予測モジュール番号。assetでinport後、exportしたあとのmodules.xmlを使う
+    modules.xml   : assetで、exportしたXMLファイル。
+        -c        : チェックオンリー。パラメータの長さのみ計算
+  :前段のモジュール名 : 一つ前の予測モジュール名を一つ
+                  : Wxxxxxyyyyyyyyyy_予測モジュール名_02 という形式
+```
+
+* 出力
+  + ```<objectPathに記述されたプログラム名>_import.py```というファイル名のファイルを作成する。
+
+### parent_job_survai.sh
+自らもTorqueのバッチジョブとして実行中のプログラム(親ジョブとする）が、さらに子プログラムをTorqueのバッチジョブ実行する時に、子プログラム（子ジョブとする）を親ジョブが先にいなくなった場合に連動してバッチジョブ登録を削除(qdel)できるようにするスクリプトである。このスクリプトをTorqueバッチジョブとして実行する。
+
+* 使い方
+  ```
+  $ sh parent_job_survai.sh <親ジョブID> <ログファイル> <子ジョブ１> <子ジョブ２> ...
+  ```
+* 特徴
+  + 予測モジュールから実行したプログラムが実行したバッチジョブプログラムはワークフローをキャンセルした時に連動してキャンセルされない。
+  + このプログラムを別途バッチジョブ登録して実行して、親ジョブを監視することで、対応できる。
+  + バッチジョブ登録する必要があるのは、親ジョブがTorque登録を削除されるとkill -15に続いてkill -9されるため、15をシグナルキャッチできても対応できない。
+  + そもそも現在のワークフロー実行用ジョブスクリプトはシグナルキャッチをしてない。
+
 
 # 参考文献
 * pairgraph
