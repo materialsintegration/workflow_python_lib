@@ -56,7 +56,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None):
+def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None):
     '''
     ワークフロー実行
     @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
@@ -65,6 +65,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     @param input_params (list) <ポート名>:<ファイル名>のリスト。
     @param number (string) 文字指定の連続実行数。-1の場合は1回で終了。
     @param timeout (int) 実行中のままこの秒数が過ぎた場合はキャンセルを実行して終了。データ取得はしない。
+    @param descriotion (string) 代わりの説明文
+    @param downloaddir (string) /tmp/<RUN番号> に変わる保存場所（ディレクトリ名）。起点はカレントディレクトリ
     '''
 
     global prev_workflow_id
@@ -285,7 +287,12 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     # 結果ファイルの取得
     #weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
     weburl = api_url%url + "/%s/data"%runid
-    os.mkdir("/tmp/%s"%runid)
+    if downloaddir is None:
+        os.mkdir("/tmp/%s"%runid)
+    else:
+        if os.path.exists(downloaddir) is False:
+            os.mkdir("./%s"%downloaddir)
+        os.mkdir("./%s/%s"%(downloaddir, runid))
     retry_count = 0
     while True:
         if STOP_FLAG is True:
@@ -346,7 +353,10 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     for tool in wf_tools:
         tool_outputs = tool["tool_outputs"]
         for item in tool_outputs:
-            filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
+            if downloaddir is None:
+                filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
+            else:
+                filename = "./%s/%s/%s"%(downloaddir, runid, item["parameter_name"])
             outputfilenames[item["parameter_name"]] = filename
             #print("outputfile:%s"%item["file_path"])
             #sys.stderr.write("file size = %s\n"%item["file_size"])
@@ -485,6 +495,7 @@ def main():
     timeout = None
     siteid = "site00002"
     description = None
+    downloaddir = None
     global STOP_FLAG
 
     for items in sys.argv:
@@ -511,6 +522,8 @@ def main():
             siteid = items[1]
         elif items[0] == "description":         # 説明
             description = items[1]
+        elif items[0] == "downloaddir":         # ダウンロードディレクトリの指定
+            downloaddir = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -524,6 +537,9 @@ def main():
         print("                      : 必要なポート名はworkflow_params.pyで取得する。")
         print("              timeout : 連続実行でない場合に、実行中のままこの時間（秒指定）を越えた場合に、キャンセルして終了する。")
         print("          description : ランの説明に記入する文章。")
+        print("          downloaddir : 実行完了後の出力ポートファイルのダウンロード場所の指定（指定はカレントディレクトリ基準）")
+        print("                        downloaddir/<RUN番号>/ポート名")
+        print("                        デフォルトは/tmp/<RUN番号>ディレクトリ")
         sys.exit(1)
 
     '''
@@ -563,7 +579,7 @@ def main():
             else:
                 wait_running_number(url, token, number)
             print("\n------ %06s -------"%i)
-        workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description)
+        workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description, downloaddir)
         time.sleep(1.0)
         if number == "-1":
             break
