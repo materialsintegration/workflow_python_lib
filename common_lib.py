@@ -1,5 +1,10 @@
 #!/usr/local/python2.7/bin/python
 # -*- coding: utf-8 -*-
+# Copyright (c) The University of Tokyo and
+# National Institute for Materials Science (NIMS). All rights reserved.
+# This document may not be reproduced or transmitted in any form,
+# in whole or in part, without the express written permission of
+# the copyright owners.
 
 '''
 WF-API呼び出し共通部品
@@ -10,6 +15,7 @@ import requests
 import json
 import datetime
 import base64
+import codecs
 import warnings
 if os.name == "nt":
     import openam_operator
@@ -126,7 +132,7 @@ def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method=
         if error_print is True:
             print("error   : ")
             print('status  : ' + str(res.status_code))
-            print('body    : ' + res.text)
+            print('body    : ' + codecs.decode(res.text, "unicode-escape"))
             print('-------------------------------------------------------------------')
             print('url     : ' + weburl)
             #return False, res
