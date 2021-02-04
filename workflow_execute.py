@@ -1,5 +1,10 @@
 #!/usr/local/python2.7/bin/python
 # -*- coding: utf-8 -*-
+# Copyright (c) The University of Tokyo and
+# National Institute for Materials Science (NIMS). All rights reserved.
+# This document may not be reproduced or transmitted in any form,
+# in whole or in part, without the express written permission of
+# the copyright owners.
 
 '''
 指定したワークフローIDのワークフローをポート名とパラメータファイルを指定して実行する
@@ -373,8 +378,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 continue
             filesize = int(item["file_size"])
             # ファイルサイズで取得するしないを判定する。基準は１Gバイト
-            if filesize > (1024 * 1024 * 1024):
-                sys.stderr.write("%s - ファイルサイズが１Ｇバイトを越えるので、取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            if filesize > (1024 * 1024 * 1024 * 2):
+                sys.stderr.write("%s - ファイルサイズが２Ｇバイトを越えるので、取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.write("file size = %s\n"%item["file_size"])
                 sys.stderr.write("URL は %s\n"%weburl)
                 sys.stderr.flush()
