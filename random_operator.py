@@ -1,5 +1,10 @@
 #!python3.6
 # -*- coding: utf-8 -*-
+# Copyright (c) The University of Tokyo and
+# National Institute for Materials Science (NIMS). All rights reserved.
+# This document may not be reproduced or transmitted in any form,
+# in whole or in part, without the express written permission of
+# the copyright owners.
 
 '''
 さまざまな乱数発生関数で、所定の数の生成した乱数を返す。

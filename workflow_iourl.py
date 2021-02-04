@@ -1,5 +1,10 @@
 #!/usr/local/python2.7/bin/python
 # -*- coding: utf-8 -*-
+# Copyright (c) The University of Tokyo and
+# National Institute for Materials Science (NIMS). All rights reserved.
+# This document may not be reproduced or transmitted in any form,
+# in whole or in part, without the express written permission of
+# the copyright owners.
 
 '''
 入出力URL一覧取得
