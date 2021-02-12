@@ -61,6 +61,33 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
+def workflow_log(messages, logfile):
+    '''
+    ランID毎に開始時間と顛末を記録する。排他制御を行い、並列実行にい備える。
+    出力先はこれまでoutfileで出力してきたファイル名()と同じ
+    @param messages(string)
+    '''
+
+    loglock_file = ".%s"%logfile
+    while True:
+        if os.path.exists(loglock_file) is False:
+            break
+        # ロックファイルがあれば１秒待つ
+        time.sleep(1.0)
+
+    # ロックファイル作成
+    outfile = open(loglock_file, "w")
+    outfile.close()
+
+    # ログ出力
+    outfile = open(logfile, "a")
+    outfile.write("%s\n"%messages)
+    outfile.close()
+
+    # ロックファイル削除
+    if os.path.exists(loglock_file) is True:    # 別プロセスが絶妙なタイミングでここを実行したときの対策。
+        os.remove(loglock_file)
+
 def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None, nodownload=True):
     '''
     ワークフロー実行
@@ -145,7 +172,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     
     # ワークフローの実行
     retry_count = 0
-    outfile = open(logfile, "a")
+    #outfile = open(logfile, "a")
+    outmessage = ""
     while True:
         #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
         weburl = api_url%(url)
@@ -158,16 +186,20 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 sys.stderr.write("%s - 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
             elif res.status_code == 400:
                 sys.stderr.write("%s - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
-                outfile.write("\n%s - - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
-                outfile.close()
+                outfile = "%s - - 「%s(%s)」により実行できませんでした。終了します。"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"])
+                workflow_log(outfile, logfile)
+                #outfile.write("\n%s - - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
+                #outfile.close()
                 return
             else:
                 sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
             if number == "-1":
                 if retry_count == 1:
                     sys.stderr.write("%s - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-                    outfile.write("%s - - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-                    outfile.close()
+                    outfile = "%s - - 実行リトライカウントオーバー。終了します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                    workflow_log(outfile, logfile)
+                    #outfile.write("%s - - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    #outfile.close()
                     return
                 else:
                     retry_count += 1
@@ -197,7 +229,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             url_runid = int(runid[1:])
             sys.stdout.write("%s - ラン詳細ページ  https://%s/workflow/runs/%s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), url, url_runid))
             sys.stdout.flush()
-            outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
+            outfile = "%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid)
+            #outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             for item in input_params:
                 if input_params[item] == "initial_setting.dat":
                     continue
@@ -256,22 +289,27 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 if estimated > timeout: 
                     sys.stderr.write("%s - 実行中のままタイムアウト時間を越えました。(%d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
                     sys.stderr.flush()
-                    outfile.write(" 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
-                    outfile.close()
+                    outfile += " 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code)
+                    workflow_log(outfile, logfile)
+                    #outfile.write(" 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+                    #outfile.close()
                     sys.exit(1)
             pass
         elif retval["status"] == "abend" or retval["status"] == "canceled":
             if retval["status"] == "abend":
                 sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-                outfile.write(" ランが異常終了しました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                outfile += " ランが異常終了しました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                #outfile.write(" ランが異常終了しました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
             else:
                 sys.stderr.write("%s - ランがキャンセルされました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-                outfile.write(" ランがキャンセルされました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                outfile += " ランがキャンセルされました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                #outfile.write(" ランがキャンセルされました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
             get_rundetail(token, url, siteid, runid, False, tool_names, False)
-            outfile.close()
+            #outfile.close()
+            workflow_log(outfile, logfile)
             sys.exit(1)
         else:
             #print("ラン実行ステータスが%sに変化したのを確認しました"%retval["status"])
@@ -280,8 +318,9 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if retval["status"] != "completed":
                 sys.stderr.write("%s - ランは正常終了しませんでした。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 sys.stderr.flush()
-                outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
-                outfile.close()
+                outfile += " ランは正常終了しませんでした。(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                #outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+                #outfile.close()
                 sys.exit(1)
                 get_rundetail(token, url, siteid, runid, False, tool_names, False)
             break
@@ -291,9 +330,11 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     #print("ワークフロー実行終了")
     sys.stdout.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
     sys.stdout.flush()
-    outfile.write(" ワークフロー実行終了(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-    outfile.close()
+    outfile += " ワークフロー実行終了(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    #outfile.write(" ワークフロー実行終了(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+    #outfile.close()
 
+    workflow_log(outfile, logfile)
     if nodownload is True:                  # 実行終了後のダウンロードをしない
         sys.stdout.write("%s - 出力ポートのダウンロードはしません\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         sys.stdout.flush()

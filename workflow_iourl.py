@@ -70,7 +70,7 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             return False, ""
         if type(timeout) == list:
             timeout = tuple(timeout)
-        res = nodeREDWorkflowAPI(token, weburl, error_print=with_result, timeout=timeout)
+        res = mintWorkflowAPI(token, weburl, error_print=with_result, timeout=timeout)
         if res.status_code != 200 and res.status_code != 201:
             if res.status_code == 500:
                 #sys.stderr.write("%s\n"%res.text)
@@ -172,11 +172,11 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
         for workflow_tool in tools_outputs:
             tool_outputs = workflow_tool["tool_outputs"]
             if len(tool_outputs) == 0:
-                sys.stderr.write('ツール名（%s）のurl_list["workflow_tools"][tool_outputs] が空？取得できませんでした。次を処理します。\n'%tool_outputs["tool_name"])
+                sys.stderr.write('ツール名（%s）のurl_list["workflow_tools"][tool_outputs] が空？取得できませんでした。次を処理します。\n'%workflow_tool["tool_name"])
                 continue
 
             if with_result is True:
-                sys.stderr.write("response contentes for output for workflow\n")
+                sys.stderr.write("response contentes for output for tool(%s)\n"%workflow_tool["tool_name"])
                 sys.stderr.write("%s\n"%json.dumps(tool_outputs, indent=2, ensure_ascii=False))
             for item in tool_outputs:
                 #param_name = item["parameter_name"].split("_")[0]
