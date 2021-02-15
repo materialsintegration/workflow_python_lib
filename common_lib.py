@@ -1,5 +1,10 @@
 #!/usr/local/python2.7/bin/python
 # -*- coding: utf-8 -*-
+# Copyright (c) The University of Tokyo and
+# National Institute for Materials Science (NIMS). All rights reserved.
+# This document may not be reproduced or transmitted in any form,
+# in whole or in part, without the express written permission of
+# the copyright owners.
 
 '''
 WF-API呼び出し共通部品
@@ -10,6 +15,7 @@ import requests
 import json
 import datetime
 import base64
+import codecs
 import warnings
 if os.name == "nt":
     import openam_operator
@@ -30,6 +36,19 @@ class timeout_object(object):
         self.status_code = None
         self.text = "Timeout"
 
+class connection_error_object(object):
+    '''
+    接続エラーのための擬似応答オブジェクト
+    '''
+
+    def __init__(self):
+        '''
+        コンストラクタ
+
+        '''
+        self.status_code = "-1"
+        self.text = ""
+        
 def getRunUUID(run_id):
     '''
     DBからrun_idに対応する内部ランID（internal_run_id）を取得する。
@@ -94,6 +113,9 @@ def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method=
         except requests.ReadTimeout:
             res = timeout_object()
             res.text = "サーバーから応答がありませんでした（timeout = %s秒)"%timeout[1]
+        except requests.ConnectionError as e:
+            res = connection_error_object()
+            res.text += "\n%s"%e
     elif method == "get_noheader":
         try:
             res = session.get(weburl, data=invdata, timeout=timeout)
@@ -103,6 +125,9 @@ def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method=
         except requests.ReadTimeout:
             res = timeout_object()
             res.text = "サーバーから応答がありませんでした（timeout = %s秒)"%timeout[1]
+        except requests.ConnectionError as e:
+            res = connection_error_object()
+            res.text += "\n%s"%e
     elif method == "post":
         try:
             res = session.post(weburl, data=invdata, headers=headers, params=params, timeout=timeout)
@@ -112,6 +137,9 @@ def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method=
         except requests.ReadTimeout:
             res = timeout_object()
             res.text = "サーバーから応答がありませんでした（timeout = %s秒)"%timeout[1]
+        except requests.ConnectionError as e:
+            res = connection_error_object()
+            res.text += "\n%s"%e
     elif method == "put":
         try:
             res = session.put(weburl, data=invdata, headers=headers, params=params, json=json, timeout=timeout)
@@ -121,14 +149,18 @@ def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method=
         except requests.ReadTimeout:
             res = timeout_object()
             res.text = "サーバーから応答がありませんでした（timeout = %s秒)"%timeout[1]
+        except requests.ConnectionError as e:
+            res = connection_error_object()
+            res.text += "\n%s"%e
     
     if res.status_code != 200 and res.status_code != 201:
         if error_print is True:
-            print("error   : ")
-            print('status  : ' + str(res.status_code))
-            print('body    : ' + res.text)
-            print('-------------------------------------------------------------------')
-            print('url     : ' + weburl)
+            sys.stderr.write("%s - \n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            sys.stderr.write("error   : \n")
+            sys.stderr.write('status  : %s\n'%str(res.status_code))
+            sys.stderr.write('body    : %s\n'%res.text)
+            sys.stderr.write('-------------------------------------------------------------------\n')
+            sys.stderr.write('url     : %s\n'%weburl)
             #return False, res
             #sys.exit(1)
 

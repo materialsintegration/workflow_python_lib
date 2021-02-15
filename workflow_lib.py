@@ -1,5 +1,10 @@
 #!/usr/bin/python3.6
 # -*- coding: utf-8 -*-
+# Copyright (c) The University of Tokyo and
+# National Institute for Materials Science (NIMS). All rights reserved.
+# This document may not be reproduced or transmitted in any form,
+# in whole or in part, without the express written permission of
+# the copyright owners.
 
 import atexit
 from miapi.system.command_line_interpreter import CommandLineInterpreter
@@ -263,9 +268,11 @@ class MIApiCommandClass(object):
             raise Exception("not set input port name(s)")
 
         for item in self.input_port_names:
+            print("%s define inputport %s as %s"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item, self.input_port_names[item]), flush=True)
             CommandLineInterpreter.define_inputport(item, self.input_port_names[item])
 
         for item in self.output_port_names:
+            print("%s define outputport %s as %s"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item, self.output_port_names[item]), flush=True)
             CommandLineInterpreter.define_outputport(item, self.output_port_names[item])
 
         CommandLineInterpreter.initialize()

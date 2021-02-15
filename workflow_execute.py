@@ -1,5 +1,10 @@
 #!/usr/local/python2.7/bin/python
 # -*- coding: utf-8 -*-
+# Copyright (c) The University of Tokyo and
+# National Institute for Materials Science (NIMS). All rights reserved.
+# This document may not be reproduced or transmitted in any form,
+# in whole or in part, without the express written permission of
+# the copyright owners.
 
 '''
 指定したワークフローIDのワークフローをポート名とパラメータファイルを指定して実行する
@@ -56,7 +61,34 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None):
+def workflow_log(messages, logfile):
+    '''
+    ランID毎に開始時間と顛末を記録する。排他制御を行い、並列実行にい備える。
+    出力先はこれまでoutfileで出力してきたファイル名()と同じ
+    @param messages(string)
+    '''
+
+    loglock_file = ".%s"%logfile
+    while True:
+        if os.path.exists(loglock_file) is False:
+            break
+        # ロックファイルがあれば１秒待つ
+        time.sleep(1.0)
+
+    # ロックファイル作成
+    outfile = open(loglock_file, "w")
+    outfile.close()
+
+    # ログ出力
+    outfile = open(logfile, "a")
+    outfile.write("%s\n"%messages)
+    outfile.close()
+
+    # ロックファイル削除
+    if os.path.exists(loglock_file) is True:    # 別プロセスが絶妙なタイミングでここを実行したときの対策。
+        os.remove(loglock_file)
+
+def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None, nodownload=True):
     '''
     ワークフロー実行
     @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
@@ -67,6 +99,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     @param timeout (int) 実行中のままこの秒数が過ぎた場合はキャンセルを実行して終了。データ取得はしない。
     @param descriotion (string) 代わりの説明文
     @param downloaddir (string) /tmp/<RUN番号> に変わる保存場所（ディレクトリ名）。起点はカレントディレクトリ
+    @param nodownload (bool) Trueなら実行終了後の出力ポートデータを取得しない。デフォルトは(True)しない。
     '''
 
     global prev_workflow_id
@@ -139,7 +172,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     
     # ワークフローの実行
     retry_count = 0
-    outfile = open(logfile, "a")
+    #outfile = open(logfile, "a")
+    outmessage = ""
     while True:
         #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
         weburl = api_url%(url)
@@ -152,16 +186,20 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 sys.stderr.write("%s - 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
             elif res.status_code == 400:
                 sys.stderr.write("%s - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
-                outfile.write("\n%s - - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
-                outfile.close()
+                outfile = "%s - - 「%s(%s)」により実行できませんでした。終了します。"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"])
+                workflow_log(outfile, logfile)
+                #outfile.write("\n%s - - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
+                #outfile.close()
                 return
             else:
                 sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
             if number == "-1":
                 if retry_count == 1:
                     sys.stderr.write("%s - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-                    outfile.write("%s - - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-                    outfile.close()
+                    outfile = "%s - - 実行リトライカウントオーバー。終了します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                    workflow_log(outfile, logfile)
+                    #outfile.write("%s - - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    #outfile.close()
                     return
                 else:
                     retry_count += 1
@@ -191,7 +229,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             url_runid = int(runid[1:])
             sys.stdout.write("%s - ラン詳細ページ  https://%s/workflow/runs/%s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), url, url_runid))
             sys.stdout.flush()
-            outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
+            outfile = "%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid)
+            #outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             for item in input_params:
                 if input_params[item] == "initial_setting.dat":
                     continue
@@ -223,9 +262,14 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if res.status_code is None:         # タイムアウトだった
                 sys.stderr.write("%s - タイムアウトしました。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
                 sys.stderr.flush()
+            elif res.status_code == "-1":       # 例外発生の異常終了
+                sys.stderr.write("%s - 例外が発生しました。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
+                sys.stderr.flush()
             else:
                 sys.stderr.write("%s - 異常な終了コードを受信しました(%d)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
                 sys.stderr.flush()
+            sys.stderr.write("                       %約２分後に再接続します。\n")
+            sys.stderr.flush()
             time.sleep(120)
             continue
         retval = res.json()
@@ -245,22 +289,27 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 if estimated > timeout: 
                     sys.stderr.write("%s - 実行中のままタイムアウト時間を越えました。(%d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
                     sys.stderr.flush()
-                    outfile.write(" 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
-                    outfile.close()
+                    outfile += " 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code)
+                    workflow_log(outfile, logfile)
+                    #outfile.write(" 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+                    #outfile.close()
                     sys.exit(1)
             pass
         elif retval["status"] == "abend" or retval["status"] == "canceled":
             if retval["status"] == "abend":
                 sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-                outfile.write(" ランが異常終了しました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                outfile += " ランが異常終了しました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                #outfile.write(" ランが異常終了しました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
             else:
                 sys.stderr.write("%s - ランがキャンセルされました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-                outfile.write(" ランがキャンセルされました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                outfile += " ランがキャンセルされました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                #outfile.write(" ランがキャンセルされました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
             get_rundetail(token, url, siteid, runid, False, tool_names, False)
-            outfile.close()
+            #outfile.close()
+            workflow_log(outfile, logfile)
             sys.exit(1)
         else:
             #print("ラン実行ステータスが%sに変化したのを確認しました"%retval["status"])
@@ -269,8 +318,9 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if retval["status"] != "completed":
                 sys.stderr.write("%s - ランは正常終了しませんでした。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 sys.stderr.flush()
-                outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
-                outfile.close()
+                outfile += " ランは正常終了しませんでした。(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                #outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+                #outfile.close()
                 sys.exit(1)
                 get_rundetail(token, url, siteid, runid, False, tool_names, False)
             break
@@ -280,9 +330,16 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     #print("ワークフロー実行終了")
     sys.stdout.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
     sys.stdout.flush()
-    outfile.write(" ワークフロー実行終了(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-    outfile.close()
-    
+    outfile += " ワークフロー実行終了(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    #outfile.write(" ワークフロー実行終了(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+    #outfile.close()
+
+    workflow_log(outfile, logfile)
+    if nodownload is True:                  # 実行終了後のダウンロードをしない
+        sys.stdout.write("%s - 出力ポートのダウンロードはしません\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+        sys.stdout.flush()
+        return
+
     #time.sleep(10)
     # 結果ファイルの取得
     #weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
@@ -373,8 +430,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 continue
             filesize = int(item["file_size"])
             # ファイルサイズで取得するしないを判定する。基準は１Gバイト
-            if filesize > (1024 * 1024 * 1024):
-                sys.stderr.write("%s - ファイルサイズが１Ｇバイトを越えるので、取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            if filesize > (1024 * 1024 * 1024 * 2):
+                sys.stderr.write("%s - ファイルサイズが２Ｇバイトを越えるので、取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.write("file size = %s\n"%item["file_size"])
                 sys.stderr.write("URL は %s\n"%weburl)
                 sys.stderr.flush()
@@ -496,13 +553,14 @@ def main():
     siteid = "site00002"
     description = None
     downloaddir = None
+    nodownload = True
     global STOP_FLAG
 
     for items in sys.argv:
         items = items.split(":")
-        if len(items) != 2:
-            continue
-    
+        #if len(items) != 2:
+        #    continue
+
         if items[0] == "workflow_id":           # ワークフローID
             workflow_id = items[1]
         elif items[0] == "token":               # APIトークン
@@ -524,12 +582,16 @@ def main():
             description = items[1]
         elif items[0] == "downloaddir":         # ダウンロードディレクトリの指定
             downloaddir = items[1]
+        elif items[0] == "--download":          # ダウンロードする
+            nodownload = False
         else:
+            if len(items) != 2:
+                continue
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
     if token is None or workflow_id is None or url is None:
         print("Usage")
-        print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL <port-name>:<filename for port> ..."%(sys.argv[0]))
+        print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL <port-name>:<filename for port> [OPTIONS]..."%(sys.argv[0]))
         print("          workflow_id : 必須 Rで始まる15桁のランID")
         print("               token  : 必須 64文字のAPIトークン")
         print("             misystem : 必須 dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
@@ -540,6 +602,9 @@ def main():
         print("          downloaddir : 実行完了後の出力ポートファイルのダウンロード場所の指定（指定はカレントディレクトリ基準）")
         print("                        downloaddir/<RUN番号>/ポート名")
         print("                        デフォルトは/tmp/<RUN番号>ディレクトリ")
+        print("    OPTIONS")
+        print("        --download    : 実行終了後の出力ポートのダウンロードを行う。")
+        print("                      : デフォルトダウンロードは行わない。")
         sys.exit(1)
 
     '''
@@ -579,7 +644,7 @@ def main():
             else:
                 wait_running_number(url, token, number)
             print("\n------ %06s -------"%i)
-        workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description, downloaddir)
+        workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description, downloaddir=downloaddir, nodownload=nodownload)
         time.sleep(1.0)
         if number == "-1":
             break
