@@ -75,7 +75,8 @@ def main():
         else:
             print("%s - ランは%s状態です。"%(run_id["start"], run_status[run_id["status"]]))
         if run_id["deleted"] == "1":
-            uuid = run_id["uuid"]
+            uuid = run_id["uuid"].decode()
+            print(uuid)
         else:
             rundetail = get_rundetail(token, url, siteid, run_id["run_id"])
             uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
