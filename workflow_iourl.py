@@ -49,7 +49,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0), debug=False):
+def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0), debug=False, read_uncomplete=False):
     '''
     入出力ファイルURL一覧の取得
     @param token (string) APIトークン
@@ -59,6 +59,7 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
     @param with_result (bool) この関数を実行時、情報を標準エラーに出力するか
     @param timeout (tuple) タイムアウトを接続確立用とその後の応答用の２つを指定する
     @param debug (bool) Trueなら応答ボディを表示して終わり
+    @param read_uncomplete (bool) file_pathキーの値の最後がrun/で終わっていても読む。
     '''
 
     # 結果ファイルの取得
@@ -143,6 +144,9 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                     param_name += "_" + params[i]
             if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                 io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+            else:
+                if read_uncomplete is True:
+                    io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
         # ワークフロー出力ポートの処理
         workflow_outputs = url_list["workflow_outputs"]
@@ -163,6 +167,9 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                     param_name += "_" + params[i]
             if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                 io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+            else:
+                if read_uncomplete is True:
+                    io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
         # 各ツールの出力ポートの処理
         tools_outputs = url_list["workflow_tools"]
@@ -183,6 +190,9 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                 param_name = item["parameter_name"]
                 if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                     io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                else:
+                    if read_uncomplete is True:
+                        io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
      
         loop_num += 1
 
