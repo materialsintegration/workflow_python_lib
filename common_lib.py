@@ -88,7 +88,7 @@ def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, meth
 
     return mintWorkflowAPI(token, weburl, params, invdata, json, method, timeout, error_print)
 
-def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
+def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 60.0), error_print=True):
     '''
     API呼び出し
     '''
