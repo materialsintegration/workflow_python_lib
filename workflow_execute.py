@@ -37,6 +37,8 @@ STOP_FLAG = False
 siteids = {"dev-u-tokyo.mintsys.jp":"site00002",
             "nims.mintsys.jp":"site00011",
             "u-tokyo.mintsys.jp":"site00001"}
+RUN_STATUS = {"canceled":"キャンセル", "failure":"起動失敗", "running":"実行中",
+              "waiting":"待機中", "paused":"一時停止", "abend":"異常終了"}
 
 api_url ="https://%s:50443/workflow-api/v3/runs"
 
@@ -316,9 +318,9 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             sys.stdout.write("%s - ラン実行ステータスが%sに変化したのを確認しました\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), retval["status"]))
             sys.stdout.flush()
             if retval["status"] != "completed":
-                sys.stderr.write("%s - ランは正常終了しませんでした。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+                sys.stderr.write("%s - ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), RUN_STATUS[retvale["status"]]))
                 sys.stderr.flush()
-                outfile += " ランは正常終了しませんでした。(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                outfile += " %s : ランは正常終了しませんでした。(%s)"%(retvale["status"], datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 #outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 #outfile.close()
                 sys.exit(1)
