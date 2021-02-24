@@ -142,7 +142,7 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False):
     '''
 
     weburl = "https://%s:50443/workflow-api/v3/runs?workflow_id=%s"%(url, workflow_id)
-    res = nodeREDWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
+    res = mintWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         if res.status_code is None:
             print("%s - 接続がタイムアウトしました(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
