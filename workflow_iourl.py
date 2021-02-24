@@ -136,6 +136,7 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
         for item in workflow_inputs:
             #param_name = item["parameter_name"].split("_")[0]
             params = item["parameter_name"].split("_")
+            #sys.stdout.write("workflow input (%s) の処理中\n"%params)
             param_name = ""
             for i in range(0, len(params) - 1):
                 if i == 0:
@@ -145,6 +146,8 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                 io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
             else:
+                sys.stderr.write("run_id(%s) のworkflow_inputsのうち%sのポートのURLが不完全です\n"%(runid, item["parameter_name"]))
+                sys.stderr.flush()
                 if read_uncomplete is True:
                     io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
@@ -159,6 +162,7 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
         for item in workflow_outputs:
             #param_name = item["parameter_name"].split("_")[0]
             params = item["parameter_name"].split("_")
+            #sys.stdout.write("workflow output (%s) の処理中\n"%params)
             param_name = ""
             for i in range(0, len(params) - 1):
                 if i == 0:
@@ -168,6 +172,8 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                 io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
             else:
+                sys.stderr.write("run_id(%s) のworkflow_outputsのうち%sのポートのURLが不完全です\n"%(runid, item["parameter_name"]))
+                sys.stderr.flush()
                 if read_uncomplete is True:
                     io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
@@ -188,9 +194,12 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             for item in tool_outputs:
                 #param_name = item["parameter_name"].split("_")[0]
                 param_name = item["parameter_name"]
+                #sys.stdout.write("tool (%s) output (%s) の処理中\n"%(workflow_tool["tool_name"], param_name))
                 if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                     io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
                 else:
+                    sys.stderr.write("run_id(%s) のtool(%s)のoutputのうち%sのポートのURLが不完全です\n"%(runid, workflow_tool["tool_name"], item["parameter_name"]))
+                    sys.stderr.flush()
                     if read_uncomplete is True:
                         io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
      
