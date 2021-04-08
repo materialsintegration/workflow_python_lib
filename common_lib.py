@@ -66,13 +66,18 @@ def getAuthInfo(url=None):
         return False, None, "{'message':'URLが指定されていません'}"
 
     #print("予測モデルを取得する側のログイン情報入力")
-    if sys.version_info[0] <= 2:
-        name = raw_input("ログインID: ")
-    else:
-        name = input("ログインID: ")
-    password = getpass("パスワード: ")
+    #if sys.version_info[0] <= 2:
+    #    name = raw_input("ログインID: ")
+    #else:
+    #    name = input("ログインID: ")
+    #password = getpass("パスワード: ")
 
-    ret, uid, token = openam_operator.miauth(url, name, password)
+    #ret, uid, token = openam_operator.miauth(url, name, password)
+    uid, token = openam_operator.miLogin(url, "%s のログイン情報"%url)
+
+    ret = True
+    if uid is None:
+        ret = False
 
     return ret, uid, token
 
