@@ -47,6 +47,10 @@ def extract_workflow_params(workflow_id, token, url):
 
         retry_count += 1
         if res.status_code != 200 and res.status_code != 201:
+            if res.status_code == 401 and res.json()["errors"][0]["code"] == "0002":
+                sys.stderr.write("%s - api failed(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"]))
+                sys.stderr.flush()
+                return False, None, None
             if retry_count > 5:
                 sys.stderr.write("%s - cannot get workflow infomation for workflow_id(%s). reached retry count, giving up.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
                 return False, None, None
