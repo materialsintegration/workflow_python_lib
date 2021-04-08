@@ -42,6 +42,10 @@ DB_RUN_STATUS={"1":"running",
                "9":"failure",
                "99":"abend"}
 
+SITEID_TABLE = {"dev-u-tokyo.mintsys.jp":"site00002",
+                "nims.mintsys.jp":"site00011",
+                "u-tokyo.mintsys.jp":"site00001"}
+
 def signal_handler(signum, frame):
     '''
     '''
@@ -213,6 +217,8 @@ def main():
     result = False
     url = None
     siteid = None
+    format_type = None
+    only_runlist = False
     global STOP_FLAG
 
     for items in sys.argv:
@@ -235,8 +241,13 @@ def main():
         elif items[0] == "siteid":              # site id(e.g. site00002)
             siteid = items[1]
             print("siteid is %s"%items[1])
+        elif items[0] == "format":              # 出力する結果の表示形式
+            format_type = items[1]
+            if format_type == "log":
+                only_runlist = True
         else:
-            input_params[items[0]] = items[1]   # 与えるパラメータ
+            #input_params[items[0]] = items[1]   # 与えるパラメータ
+            pass
 
     # token指定が無い場合ログイン情報取得
     if token is None and url is not None:
@@ -247,27 +258,50 @@ def main():
             print(uid.json())
             print("ログインに失敗しました。")
 
-    if token is None or workflow_id is None or url is None or siteid is None:
+    if token is None or workflow_id is None or url is None:
         print("Usage")
-        print("   $ python %s workflow_id:Mxxxx [token:yyyy] misystem:URL siteid:sitexxxxx"%(sys.argv[0]))
+        print("   $ python %s workflow_id:Mxxxx [token:yyyy] misystem:URL siteid:sitexxxxx [format:type]"%(sys.argv[0]))
         print("          workflow_id : Mで始まる16桁のワークフローID")
         print("               token  : 64文字のAPIトークン")
         print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
         print("              siteid  : siteで＋５桁の数字。site00002など")
+        print("               format : 結果の出力形式。")
+        print("                        無指定は今までどおりの１ランあたり５行の表形式")
+        print("                        log : workflow_execute.pyの出力形式。入出力ファイル一括スクリプトでも使用可能")
         sys.exit(1)
 
-    retval, res = get_runlist(token, url, siteid, workflow_id)
+    if siteid is None:
+        siteid = SITEID_TABLE[url]
+
+    retval, res = get_runlist(token, url, siteid, workflow_id, only_runlist=only_runlist)
     if retval is False:
         sys.exit(1)
-    for item in res:
-        print("RunID : %s"%item["run_id"])
-        print("               開始 : %s"%item["start"].strftime("%Y/%m/%d %H:%M:%S"))
-        print("               終了 : %s"%item["end"].strftime("%Y/%m/%d %H:%M:%S"))
-        print("         ステータス : %s"%item["status"])
-        print("        ラン詳細URL : https://%s/workflow/runs/%s"%(url, int(item["run_id"].split("/")[-1][1:])))
-        uuid = item["uuid"].split("/")[-1].replace("-", "")
-        dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
-        print("  実行時ディレクトリ: %s"%dirname)
+    if len(res) == 0:
+        sys.stderr.write("リストは取得できませんでした。\n")
+        sys.stderr.flush()
+        sys.exit(1)
+
+    if format_type is None:
+        for item in res:
+            print("RunID : %s"%item["run_id"])
+            print("               開始 : %s"%item["start"].strftime("%Y/%m/%d %H:%M:%S"))
+            print("               終了 : %s"%item["end"].strftime("%Y/%m/%d %H:%M:%S"))
+            print("         ステータス : %s"%item["status"])
+            print("        ラン詳細URL : https://%s/workflow/runs/%s"%(url, int(item["run_id"].split("/")[-1][1:])))
+            uuid = item["uuid"].split("/")[-1].replace("-", "")
+            dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
+            print("  実行時ディレクトリ: %s"%dirname)
+    elif format_type == "log":
+        for item in res:
+            if ("completion" in item) is True:
+                completion = item["completion"].strftime("%Y/%m/%d %H:%M:%S")
+            else:
+                completion = "-"
+            sys.stdout.write("%s - %s : %s(%s)\n"%(item["start"].strftime("%Y/%m/%d %H:%M:%S"), item["run_id"], item["status"], completion))
+            sys.stdout.flush()
+    else:
+        for item in res:
+            print(str(item))
 
 if __name__ == '__main__':
     main()
