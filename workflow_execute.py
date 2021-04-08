@@ -90,7 +90,7 @@ def workflow_log(messages, logfile):
     if os.path.exists(loglock_file) is True:    # 別プロセスが絶妙なタイミングでここを実行したときの対策。
         os.remove(loglock_file)
 
-def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None, nodownload=True):
+def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None, nodownload=True, exec_retry_count=5):
     '''
     ワークフロー実行
     @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
@@ -102,6 +102,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     @param descriotion (string) 代わりの説明文
     @param downloaddir (string) /tmp/<RUN番号> に変わる保存場所（ディレクトリ名）。起点はカレントディレクトリ
     @param nodownload (bool) Trueなら実行終了後の出力ポートデータを取得しない。デフォルトは(True)しない。
+    @param exec_retry_count (int) ワークフロー実行時APIの応答でエラーが返ってきたときこの回数までリトライしてだめならFalseで返る。
+    @retval (bool, str) boolとstringのタプル。 実行不可能だったらFalse。正常実行できたらTrue
     '''
 
     global prev_workflow_id
@@ -116,7 +118,9 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
         miwf_contents, input_ports, output_ports = extract_workflow_params(workflow_id, token, url)
         if miwf_contents is False:
             sys.stderr.write("%s - ワークフローの情報を取得できませんでした。終了します。。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
-            sys.exit(1)
+            sys.stderr.flush()
+            #sys.exit(1)
+            return False, "%s - ワークフローの情報を取得できませんでした。終了します。。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id)
     else:
         input_ports = input_ports_prev
         output_ports = output_ports_prev
@@ -186,26 +190,37 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
         if res.status_code != 200 and res.status_code != 201:
             if res.status_code is None:         # タイムアウトだった
                 sys.stderr.write("%s - 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
+                sys.stderr.flush()
             elif res.status_code == 400:
                 sys.stderr.write("%s - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
-                outfile = "%s - - 「%s(%s)」により実行できませんでした。終了します。"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"])
-                workflow_log(outfile, logfile)
+                sys.stderr.flush()
+                message = "%s - - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"])
+                workflow_log(message, logfile)
                 #outfile.write("\n%s - - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
                 #outfile.close()
-                return
+                return False, message
+            elif res.status_code == 401:
+                if res.json()["code"] == "0002":
+                    sys.stderr.write("%s - 「%s(%s)」により実行できませんでした。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"]))
+                    sys.stderr.flush()
+                    message = "%s - - 「%s(%s)」により実行できませんでした。終了します。"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"], res.json()["errors"][0]["code"])
+                    workflow_log(message, logfile)
+                    return False, message
             else:
                 sys.stderr.write("%s - False 実行できませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), json.dumps(res.json(), indent=2, ensure_ascii=False)))
             if number == "-1":
-                if retry_count == 1:
+                if retry_count == exec_retry_count:
                     sys.stderr.write("%s - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-                    outfile = "%s - - 実行リトライカウントオーバー。終了します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-                    workflow_log(outfile, logfile)
+                    sys.stderr.flush()
+                    message = "%s - - 実行リトライカウントオーバー。終了します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                    workflow_log(message, logfile)
                     #outfile.write("%s - - 実行リトライカウントオーバー。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                     #outfile.close()
-                    return
+                    return False, message
                 else:
                     retry_count += 1
                     sys.stderr.write("%s - ６０秒後、実行リトライ。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                    sys.stderr.flush()
                     time.sleep(60)
                     continue
             else:
@@ -215,7 +230,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 subprocess.call("systemctl restart tomcat@api", shell=True, executable='/bin/bash')
                 print("%s - tomcat@apiを再起動しました。120秒後にランを再開します。"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 time.sleep(120)
-            return
+            return True, ""
             
         else:
             # ラン番号の取得
@@ -231,7 +246,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             url_runid = int(runid[1:])
             sys.stdout.write("%s - ラン詳細ページ  https://%s/workflow/runs/%s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), url, url_runid))
             sys.stdout.flush()
-            outfile = "%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid)
+            message = "%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid)
             #outfile.write("%s - %s :"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), runid))
             for item in input_params:
                 if input_params[item] == "initial_setting.dat":
@@ -243,13 +258,13 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 #sys.stderr.write("param file name = %s\n"%input_params[item])
                 infile = open(input_params[item])
                 value = infile.read().split("\n")[0]
-                outfile.write("%s=%s,"%(item, value))
+                #outfile.write("%s=%s,"%(item, value))
                 infile.close()
             #outfile.write("\n")
             #outfile.close()
             #status_out("ワークフロー実行中（%s）"%runid)
             if number != "-1":
-                return
+                return True, ""
             break
     
     # ラン終了待機
@@ -291,8 +306,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 if estimated > timeout: 
                     sys.stderr.write("%s - 実行中のままタイムアウト時間を越えました。(%d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
                     sys.stderr.flush()
-                    outfile += " 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code)
-                    workflow_log(outfile, logfile)
+                    message += " 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code)
+                    workflow_log(message, logfile)
                     #outfile.write(" 実行中のままタイムアウト時間を越えました。(%s : %d) 終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
                     #outfile.close()
                     sys.exit(1)
@@ -301,26 +316,26 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if retval["status"] == "abend":
                 sys.stderr.write("%s - ランが異常終了しました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-                outfile += " ランが異常終了しました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                message += " ランが異常終了しました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
                 #outfile.write(" ランが異常終了しました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
             else:
                 sys.stderr.write("%s - ランがキャンセルされました。実行を終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-                outfile += " ランがキャンセルされました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+                message += " ランがキャンセルされました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
                 #outfile.write(" ランがキャンセルされました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
             get_rundetail(token, url, siteid, runid, False, tool_names, False)
             #outfile.close()
-            workflow_log(outfile, logfile)
+            workflow_log(message, logfile)
             sys.exit(1)
         else:
             #print("ラン実行ステータスが%sに変化したのを確認しました"%retval["status"])
             sys.stdout.write("%s - ラン実行ステータスが%sに変化したのを確認しました\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), retval["status"]))
             sys.stdout.flush()
             if retval["status"] != "completed":
-                sys.stderr.write("%s - ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), RUN_STATUS[retvale["status"]]))
+                sys.stderr.write("%s - ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), RUN_STATUS[retval["status"]]))
                 sys.stderr.flush()
-                outfile += " %s : ランは正常終了しませんでした。(%s)"%(retvale["status"], datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                message += " %s : ランは正常終了しませんでした。(%s)"%(retval["status"], datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 #outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 #outfile.close()
                 sys.exit(1)
@@ -332,11 +347,11 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     #print("ワークフロー実行終了")
     sys.stdout.write("%s - ワークフロー実行終了\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
     sys.stdout.flush()
-    outfile += " ワークフロー実行終了(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+    message += " ワークフロー実行終了(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
     #outfile.write(" ワークフロー実行終了(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
     #outfile.close()
 
-    workflow_log(outfile, logfile)
+    workflow_log(message, logfile)
     if nodownload is True:                  # 実行終了後のダウンロードをしない
         sys.stdout.write("%s - 出力ポートのダウンロードはしません\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         sys.stdout.flush()
@@ -349,9 +364,12 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     if downloaddir is None:
         os.mkdir("/tmp/%s"%runid)
     else:
-        if os.path.exists(downloaddir) is False:
-            os.mkdir("./%s"%downloaddir)
-        os.mkdir("./%s/%s"%(downloaddir, runid))
+        if downloaddir.startswith("/tmp") is False:         # tempfile指定などが使われた？
+            if os.path.exists(downloaddir) is False:
+                os.mkdir("./%s"%downloaddir)
+            os.mkdir("./%s/%s"%(downloaddir, runid))
+        else:
+            os.mkdir("%s/%s"%(downloaddir, runid))
     retry_count = 0
     while True:
         if STOP_FLAG is True:
@@ -415,7 +433,10 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if downloaddir is None:
                 filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
             else:
-                filename = "./%s/%s/%s"%(downloaddir, runid, item["parameter_name"])
+                if downloaddir.startswith("/tmp") is False:         # tempfile指定などが使われた？
+                    filename = "./%s/%s/%s"%(downloaddir, runid, item["parameter_name"])
+                else:
+                    filename = "%s/%s/%s"%(downloaddir, runid, item["parameter_name"])
             outputfilenames[item["parameter_name"]] = filename
             #print("outputfile:%s"%item["file_path"])
             #sys.stderr.write("file size = %s\n"%item["file_size"])
@@ -558,10 +579,19 @@ def main():
     nodownload = True
     global STOP_FLAG
 
-    for items in sys.argv:
-        items = items.split(":")
+    for i in range(1, len(sys.argv)):
+        #items = items.split(":")
         #if len(items) != 2:
         #    continue
+        item = sys.argv[i]
+
+        if item.startswith("--"):
+            if item == "--download":
+                nodownload = False
+            continue
+        items = []
+        items.append(item[0:item.index(":")])
+        items.append(item[item.index(":") + 1:])
 
         if items[0] == "workflow_id":           # ワークフローID
             workflow_id = items[1]
@@ -584,8 +614,6 @@ def main():
             description = items[1]
         elif items[0] == "downloaddir":         # ダウンロードディレクトリの指定
             downloaddir = items[1]
-        elif items[0] == "--download":          # ダウンロードする
-            nodownload = False
         else:
             if len(items) != 2:
                 continue
@@ -646,13 +674,16 @@ def main():
             else:
                 wait_running_number(url, token, number)
             print("\n------ %06s -------"%i)
-        workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description, downloaddir=downloaddir, nodownload=nodownload)
+        ret = workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description, downloaddir=downloaddir, nodownload=nodownload)
         time.sleep(1.0)
         if number == "-1":
             break
         print("Next workflow will start after 30 seconds")
         #time.sleep(10)             # 次のランを10秒後に実行する
         i += 1
+
+    if ret is False:
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
