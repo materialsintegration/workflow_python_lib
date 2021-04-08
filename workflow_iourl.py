@@ -78,7 +78,7 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                 try:
                     sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
                 except:
-                    sys.stderr.write("%s\n"%json.text)
+                    sys.stderr.write("%s\n"%res.text)
             elif res.status_code == 503:
                 if res.json()["errors"][0]["code"] == "0011":
                     continue
@@ -138,11 +138,19 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             params = item["parameter_name"].split("_")
             #sys.stdout.write("workflow input (%s) の処理中\n"%params)
             param_name = ""
-            for i in range(0, len(params) - 1):
-                if i == 0:
-                    param_name = params[i]
-                else:
-                    param_name += "_" + params[i]
+            #==> 2021/04/05: Rosenbrock_x のような01が無いポートに対応する。
+            try:
+                int(params[-1])
+                params.pop(-1)
+            except:
+                pass
+            param_name = "_".join(params)
+            #for i in range(0, len(params) - 1):
+            #    if i == 0:
+            #        param_name = params[i]
+            #    else:
+            #        param_name += "_" + params[i]
+            #<== 2021/04/05
             if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                 io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
             else:
@@ -164,11 +172,19 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             params = item["parameter_name"].split("_")
             #sys.stdout.write("workflow output (%s) の処理中\n"%params)
             param_name = ""
-            for i in range(0, len(params) - 1):
-                if i == 0:
-                    param_name = params[i]
-                else:
-                    param_name += "_" + params[i]
+            #==> 2021/04/05: Rosenbrock_x のような01が無いポートに対応する。
+            try:
+                int(params[-1])
+                params.pop(-1)
+            except:
+                pass
+            param_name = "_".join(params)
+            #for i in range(0, len(params) - 1):
+            #    if i == 0:
+            #        param_name = params[i]
+            #    else:
+            #        param_name += "_" + params[i]
+            #<== 2021/04/05
             if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                 io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
             else:
@@ -193,10 +209,21 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                 sys.stderr.write("%s\n"%json.dumps(tool_outputs, indent=2, ensure_ascii=False))
             for item in tool_outputs:
                 #param_name = item["parameter_name"].split("_")[0]
-                param_name = item["parameter_name"]
+                #==> 2021/04/08: ものによって_01が付与される？ための対処
+                #param_name = item["parameter_name"]
+                params = item["parameter_name"].split("_")
+                param_name = ""
+                try:
+                    int(params[-1])
+                    params.pop(-1)
+                except:
+                    pass
+                param_name = "_".join(params)
+                #<== 2021/04/08
                 #sys.stdout.write("tool (%s) output (%s) の処理中\n"%(workflow_tool["tool_name"], param_name))
                 if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
-                    io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                    if item["file_size"] != 0:
+                        io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
                 else:
                     sys.stderr.write("run_id(%s) のtool(%s)のoutputのうち%sのポートのURLが不完全です\n"%(runid, workflow_tool["tool_name"], item["parameter_name"]))
                     sys.stderr.flush()
