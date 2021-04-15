@@ -27,6 +27,7 @@ def main():
     token = None
     workflow_id = None
     result = False
+    extra_cmd = None
     global STOP_FLAG
     run_status = {"completed":"完了",
                   "running":"実行中",
@@ -47,6 +48,8 @@ def main():
             result = items[1]
         elif items[0] == "siteid":              # site id(e.g. site00002)
             siteid = items[1]
+        elif items[0] == "excmd":               # 実行中以外の時に実行するコマンドの指定
+            extra_cmd = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -81,7 +84,7 @@ def main():
             print("%s - ランは%s状態です。"%(run_id["start"], run_status[run_id["status"]]))
         if run_id["deleted"] == "1":
             uuid = run_id["uuid"].decode()
-            print(uuid)
+            print("  ランは削除されています。UUID='%s'"%uuid)
         else:
             rundetail = get_rundetail(token, url, siteid, run_id["run_id"])
             uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
@@ -93,6 +96,16 @@ def main():
 
         print("  ディレクトリサイズは %s"%amount)
         print("  %s"%dirname)
+        if extra_cmd is None:
+            print("")
+            continue
+        if run_id["status"] != "running" and run_id["status"] != "waiting":
+            extra_cmd = extra_cmd.replace("\\", "")
+            print("  コマンド(%s)実行中"%extra_cmd)
+            print("")
+            ret = subprocess.run(extra_cmd, shell=True)
+            if ret != "":
+                print("  %s"%ret)
 
 if __name__ == '__main__':
     main()
