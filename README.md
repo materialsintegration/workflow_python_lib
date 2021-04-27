@@ -20,6 +20,7 @@
 ~~ pairgraph.py          - タブ区切りのCSVファイルからペアプロットを作成する。
   + Thermo-Calc実行スクリプト専用
   + 要matplotlib、seabornパッケージ~~
+* workflow_create.py    - ワークフローを登録する。
 
 ※ 対応するpythonのバージョンは3.6以上を想定している。2.6または2.7でも動作可能かもしれないが、保証はしない。
 
@@ -453,6 +454,49 @@ Usage python3.6 extract_io_ports.py <prediction_id> <modules.xml> [-c[:前段の
   + このプログラムを別途バッチジョブ登録して実行して、親ジョブを監視することで、対応できる。
   + バッチジョブ登録する必要があるのは、親ジョブがTorque登録を削除されるとkill -15に続いてkill -9されるため、15をシグナルキャッチできても対応できない。
   + そもそも現在のワークフロー実行用ジョブスクリプトはシグナルキャッチをしてない。
+
+
+### workflow_create.py
+ワークフローを登録する。
+* 実行
+
+  実行に必要なパラメータ。
+  + 共通パラメータ
+  + 登録するワークフロー名
+
+  任意指定のパラメータ。
+  + 登録するワークフローの説明
+  + 登録するワークフローに設定する予測モデルID。URI形式
+  + 登録するワークフローに関連付けたいワークフローID。URI形式
+  + 関連付けたいワークフローのリビジョン番号
+  + ワークフロー定義(miwf)ファイル名
+
+  実行方法
+  ```
+  python3.6 workflow_create.py token:<APIトークン> misystem:dev-u-tokyo.mintsys.jp name:<ワークフロー名> description:<ワークフロー説明> prediction_model_id:http://mintsys.jp/inventory/prediction-models/M000020000004476 reference_workflow_id:http://mintsys.jp/workflow/workflows/W000020000000324 reference_workflow_revision:1 miwf_file:W000020000000324.miwf
+  ```
+  実行すると以下のような表示が行われる。  
+  ```
+    2021/04/27 11:16:28 - ワークフロー登録終了 - <ワークフローID>
+  ```
+
+* 関数呼び出し  
+  importして関数として呼び出すことも可能である。
+  ```
+    def workflow_create(token, url, name, description, prediction_model_id, reference_workflow_id, reference_workflow_revision, miwf):
+        '''
+        ワークフロー登録
+        @param token (string) APIトークン
+        @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+        @param name (string) 登録するワークフロー名
+        @param description (string) 登録するワークフローの説明
+        @param prediction_model_id (string) 登録するワークフローに設定する予測モデルID。URI形式
+        @param reference_workflow_id (string) 登録するワークフローに関連付けたいワークフローID。URI形式
+        @param reference_workflow_revision (int) 関連付けたいワークフローのリビジョン番号
+        @param miwf (json) 登録するワークフローに設定する、ワークフロー定義 ※ファイル名ではない
+        @retval ワークフローID（W+15桁の数値）(string)
+        '''
+  ```
 
 
 # 参考文献
