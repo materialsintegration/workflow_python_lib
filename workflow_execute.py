@@ -29,6 +29,7 @@ except:
 from common_lib import *
 from workflow_params import *
 from workflow_rundetail import *
+from openam_operator import openam_operator
 
 prev_workflow_id = None
 input_ports_prev = None
@@ -619,11 +620,11 @@ def main():
                 continue
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
-    if token is None or workflow_id is None or url is None:
+    if workflow_id is None or url is None:
         print("Usage")
         print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL <port-name>:<filename for port> [OPTIONS]..."%(sys.argv[0]))
         print("          workflow_id : 必須 Rで始まる15桁のランID")
-        print("               token  : 必須 64文字のAPIトークン")
+        print("               token  : 非必須 64文字のAPIトークン")
         print("             misystem : 必須 dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
         print("    <port-name>:<filename for port> : ポート名とそれに対応するファイル名を必要な数だけ。")
         print("                      : 必要なポート名はworkflow_params.pyで取得する。")
@@ -640,6 +641,15 @@ def main():
     '''
     numberの回数分WFを実行する。
     '''
+
+    # APIトークンの取得
+    if token is None:
+        uid, token = openam_operator.miLogin(url, "ログイン情報入力")
+
+    if token is None:
+        os.stderr.write("ログインに失敗しました。\n")
+        os.stderr.flush()
+        sys.exit(1)
 
     if seed is None:
         random.seed(time.time())

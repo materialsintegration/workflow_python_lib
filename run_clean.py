@@ -56,6 +56,11 @@ def main():
     if token is None:
         uid, token = openam_operator.miLogin(url, "ログイン情報入力")
 
+    if token is None:
+        os.stderr.write("ログインに失敗しました。\n")
+        os.stderr.flush()
+        sys.exit(1)
+
     if url == "nims.mintsys.jp" or url == "u-tokyo.mintsys.jp":
         hostid = "192.168.1.242"
     elif url == "dev-u-tokyo.mintsys.jp":
