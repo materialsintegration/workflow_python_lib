@@ -498,6 +498,85 @@ Usage python3.6 extract_io_ports.py <prediction_id> <modules.xml> [-c[:前段の
         '''
   ```
 
+### run_clean.py
+MIntシステムでは基本的に、ランディレクトリのファイルは実行終了後は触らない方針である。異常終了やキャンセルした場合でもそのデータに何らかの意味があるという思想からである。他方、プログラムの不備で、削除されるべき中間ファイルが残ってしまうこともある。こういったファイルは実行終了後にのこっていてもGPDB経由で取り出すこともない。このプログラムはそのような時に使用するものである。
+
+* 必要な情報
+このプログラムを実行するのに必要な情報は以下の通りである。
+  + ワークフロー番号
+    - 必須
+    - 指定されたワークフローすべてについて調査する。
+    - 現状日時やその範囲の指定は実装されていない。（予定は有る）
+  + トップURL
+    - 必須
+    - NIMS運用環境ならnims.mintsys.jp。NIMS開発環境ならdev-u-tokyo.mintsys.jpなどとなる。
+  + siteID
+    - 必須
+    - NIMS運用環境ならsite00011。NIMS開発環境ならsite00002などとなる。
+  + excomd
+    - オプション
+    - 実行中または待機中でないランに対して実行したいシェルコマンドを指定する
+
+* ログイン情報
+API実行するのでトークンが必要である。しかしトークン指定はヒストリに残る。また構成ファイルにも対応してないので、毎度ログインプロンプトで取得する方式となっている。
+
+* ログインID
+実行に必要なトークンを得るためのログインIDはどのユーザーでも構わない。ただし権限が狭いユーザーだと、他のユーザーのランが操作対象から外れる可能性がある。指定したワークフローの全ランを対象にしたい場合はmiadminなどの管理者ユーザーIDを利用するべきである。
+
+* 使用方法
+ランのデータディレクトリに直接アクセスするためネットワーク越し（ヘッドノード以外の計算機から操作する場合など）は余計なパケットおよびヘッドノードのNFSデーモンなどに余計な負荷がかかるので推奨しない。ヘッドノードで実行する方法を推奨する。なおユーザーはmisystemが推奨であるが、ここのところ報告されているNFSデーモン異常動作時はmisystemでの作業は不可能なので、その時は注意してrootで実行する。
+
+* 実行手順
+手順の前提条件は以下の通りである。
+  + ワークフローID：W000110000000402
+  + トップURL：nims.mintsys.jp
+  + サイトID：site00011
+
+* 実行時ディレクトリの容量の表示
+実行時ディレクトリの容量を表示するための実行手順は以下の通りである。
+```
+$ cd ~/assets/modules/workflow_python_lib
+$ python3.6 run_clean.py workflow_id:W000110000000402 misystem:nims.mintsys.jp siteid:site00011
+```
+
+実行中の表示
+```
+run(R000110000621000) 情報：2021-02-22 19:14:05 - ランは完了しています。
+  ディレクトリサイズは 707M .
+  /home/misystem/assets/workflow/site00011/calculation/9b/0c/b8/f6/62/06/4c/1f/a6/25/e2/48/7f/59/6d/2a
+
+run(R000110000621001) 情報：2021-02-22 19:19:04 - ランは完了しています。
+  ディレクトリサイズは 709M .
+  /home/misystem/assets/workflow/site00011/calculation/0d/09/79/eb/bc/00/4e/d8/be/bf/c6/a3/ed/b5/3a/9d
+```
+
+* 実行時ディレクトリに対してなにかしら実行する場合
+実行時ディレクトリに対して、指定したコマンドの実行が可能である。以下のように実行する。
+```
+$ cd ~/assets/modules/workflow_python_lib
+$ python3.6 run_clean.py workflow_id:W000110000000402 misystem:nims.mintsys.jp siteid:site00011 excmd:'rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp'
+```
+
+コマンドを指定する場合、注意点がある。
+* excmd:につづけて、コマンド全体をシングルクオート```'```またはダブルクオート```"```でくくる。
+* パイプ処理は使えない。
+
+* 実行中の表示
+```
+run(R000110000620133) 情報：2021-01-04 21:11:31 - ランは完了しています。
+  ディレクトリサイズは 4.3G .
+  /home/misystem/assets/workflow/site00011/calculation/4c/40/97/d4/ed/71/47/7f/b7/5f/98/28/f3/21/39/f4
+  コマンド(rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp)実行中
+
+  CompletedProcess(args='rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp', returncode=0)
+run(R000110000620134) 情報：2021-01-04 19:50:06 - ランは完了しています。
+  ディレクトリサイズは 4.3G .
+  /home/misystem/assets/workflow/site00011/calculation/61/1e/66/74/a0/1a/4a/d4/a4/7e/82/33/bb/2a/51/5a
+  コマンド(rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp)実行中
+
+  CompletedProcess(args='rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp', returncode=0)
+```
+
 # 参考文献
 * pairgraph
   + [seaborn.pariplot](https://seaborn.pydata.org/generated/seaborn.pairplot.html#seaborn.pairplot)
