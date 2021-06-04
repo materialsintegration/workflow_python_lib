@@ -135,7 +135,7 @@ def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=Fal
 
     return True, run_lists
 
-def get_runlist(token, url, siteid, workflow_id, only_runlist=False):
+def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3"):
     '''
     ラン詳細の取得
     @param token (string) APIトークン
@@ -143,9 +143,10 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False):
     @param siteid (string) サイトID。e.g. site00002
     @param workflow_id (string) ワークフローID。e.g. W000020000000197
     @param only_runlist (bool) Trueの場合、ラン一覧で得られる情報のみを返す。ラン詳細までは返さない。
+    @param version (string) workflow-apiのバージョンテキスト
     '''
 
-    weburl = "https://%s:50443/workflow-api/v3/runs?workflow_id=%s"%(url, workflow_id)
+    weburl = "https://%s:50443/workflow-api/%s/runs?workflow_id=%s"%(url, version, workflow_id)
     res = mintWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         if res.status_code is None:
@@ -190,7 +191,7 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False):
         run_info["status"] = item["status"]
         run_info["description"] = description
         # ラン詳細取得
-        weburl = "https://%s:50443/workflow-api/v3/runs/%s"%(url, run_info["run_id"].split("/")[-1])
+        weburl = "https://%s:50443/workflow-api/%s/runs/%s"%(url, version, run_info["run_id"].split("/")[-1])
         run_res = nodeREDWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
         if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
             if res.status_code is None:
@@ -219,6 +220,7 @@ def main():
     siteid = None
     format_type = None
     only_runlist = False
+    version = "v3"
     global STOP_FLAG
 
     for items in sys.argv:
@@ -245,6 +247,8 @@ def main():
             format_type = items[1]
             if format_type == "log":
                 only_runlist = True
+        elif items[0] == "version":             # APIバージョン指定
+            version = items[1]
         else:
             #input_params[items[0]] = items[1]   # 与えるパラメータ
             pass
@@ -273,7 +277,7 @@ def main():
     if siteid is None:
         siteid = SITEID_TABLE[url]
 
-    retval, res = get_runlist(token, url, siteid, workflow_id, only_runlist=only_runlist)
+    retval, res = get_runlist(token, url, siteid, workflow_id, only_runlist=only_runlist, version=version)
     if retval is False:
         sys.exit(1)
     if len(res) == 0:

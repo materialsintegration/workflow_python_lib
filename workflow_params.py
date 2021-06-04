@@ -18,6 +18,7 @@ import time
 
 sys.path.append("~/assets/modules/workflow_python/lib")
 from common_lib import *
+from openam_operator import openam_operator
 
 def status_out(message=""):
     '''
@@ -32,7 +33,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def extract_workflow_params(workflow_id, token, url):
+def extract_workflow_params(workflow_id, token, url, version="v3"):
     '''
     ワークフロー詳細情報を取得
     @param workflow_id (string) ワークフローID。e.g. W000020000000197
@@ -42,7 +43,7 @@ def extract_workflow_params(workflow_id, token, url):
 
     retry_count = 0
     while True:
-        weburl = "https://%s:50443/workflow-api/v3/workflows/%s"%(url, workflow_id)
+        weburl = "https://%s:50443/workflow-api/%s/workflows/%s"%(url, version, workflow_id)
         res = mintWorkflowAPI(token, weburl)
 
         retry_count += 1
@@ -118,6 +119,7 @@ def main():
     workflow_id = None
     seed = None
     number = "0"
+    version = "v3"
 
     for items in sys.argv:
         items = items.split(":")
@@ -134,10 +136,12 @@ def main():
             number = items[1]
         elif items[0] == "seed":                # random種の指定
             seed = items[1]
+        elif items[0] == "version":             # APIバージョン指定
+            version = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
     
-    if token is None or workflow_id is None or url is None:
+    if workflow_id is None or url is None:
         print("Usage")
         print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL"%(sys.argv[0]))
         print("          workflow_id : Mで始まる16桁のワークフローID")
@@ -145,7 +149,16 @@ def main():
         print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
         sys.exit(1)
 
-    miwf, input_ports, output_ports = extract_workflow_params(workflow_id, token, url)
+    # APIトークンの取得
+    if token is None:
+        uid, token = openam_operator.miLogin(url, "ログイン情報入力")
+
+    if token is None:
+        os.stderr.write("ログインに失敗しました。\n")
+        os.stderr.flush()
+        sys.exit(1)
+
+    miwf, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, version)
 
     print("input parameters")
     for item in input_ports:

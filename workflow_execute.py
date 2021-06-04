@@ -41,7 +41,8 @@ siteids = {"dev-u-tokyo.mintsys.jp":"site00002",
 RUN_STATUS = {"canceled":"キャンセル", "failure":"起動失敗", "running":"実行中",
               "waiting":"待機中", "paused":"一時停止", "abend":"異常終了"}
 
-api_url ="https://%s:50443/workflow-api/v3/runs"
+api_url ="https://%s:50443/workflow-api/%s/runs"
+CHARSET_DEF = 'utf-8'
 
 def signal_handler(signum, frame):
     '''
@@ -91,7 +92,7 @@ def workflow_log(messages, logfile):
     if os.path.exists(loglock_file) is True:    # 別プロセスが絶妙なタイミングでここを実行したときの対策。
         os.remove(loglock_file)
 
-def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None, nodownload=True, exec_retry_count=5):
+def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None, nodownload=True, exec_retry_count=5, version="v3"):
     '''
     ワークフロー実行
     @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
@@ -116,7 +117,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
 
     # 前回と同じworkflow_idなら詳細を取得しない。
     if prev_workflow_id != workflow_id:
-        miwf_contents, input_ports, output_ports = extract_workflow_params(workflow_id, token, url)
+        miwf_contents, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, version)
         if miwf_contents is False:
             sys.stderr.write("%s - ワークフローの情報を取得できませんでした。終了します。。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
             sys.stderr.flush()
@@ -165,6 +166,10 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             params["input_name"] = target_item[0]
             if target_item[2] == "file":
                 #print("inputfile = %s"%creep_in)
+                if os.path.exists(input_params[input_item]) is False:
+                    sys.stderr.write("パラメータファイル(%s)がありません。終了します。\n"%input_params[input_item])
+                    sys.stderr.flush()
+                    sys.exit(1)
                 params["input_data_file"] = base64.b64encode(open(input_params[input_item], "rb").read()).decode('utf-8')
                 #print(params["input_data_file"])
             elif target_item[2] == "asset":
@@ -183,7 +188,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     outmessage = ""
     while True:
         #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
-        weburl = api_url%(url)
+        weburl = api_url%(url, version)
         params = {"workflow_id":"%s"%workflow_id}
         res = mintWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(300.0, 300.0), error_print=False)
         
@@ -272,7 +277,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     start_time = None
     working_dir = None
     #weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
-    weburl = api_url%url + "/" + runid
+    weburl = api_url%(url, version) + "/" + runid
     #print("ワークフロー実行中...")
     while True:
         res = mintWorkflowAPI(token, weburl)
@@ -325,7 +330,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 message += " ランがキャンセルされました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
                 #outfile.write(" ランがキャンセルされました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
-            get_rundetail(token, url, siteid, runid, False, tool_names, False)
+            get_rundetail(token, url, siteid, runid, False, tool_names, False, version=version)
             #outfile.close()
             workflow_log(message, logfile)
             sys.exit(1)
@@ -340,7 +345,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 #outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 #outfile.close()
                 sys.exit(1)
-                get_rundetail(token, url, siteid, runid, False, tool_names, False)
+                get_rundetail(token, url, siteid, runid, False, tool_names, False, version=version)
             break
     
         time.sleep(5)      # 問い合わせ間隔30秒
@@ -361,7 +366,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     #time.sleep(10)
     # 結果ファイルの取得
     #weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
-    weburl = api_url%url + "/%s/data"%runid
+    weburl = api_url%(url, version) + "/%s/data"%runid
     if downloaddir is None:
         os.mkdir("/tmp/%s"%runid)
     else:
@@ -388,7 +393,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if retry_count == 5:
                 sys.stderr.write("%s - 結果取得失敗。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-                get_rundetail(token, url, siteid, runid, False, tool_names, False)
+                get_rundetail(token, url, siteid, runid, False, tool_names, False, version=version)
                 sys.exit(1)
             else:
                 sys.stderr.write("%s - 結果取得失敗。５分後に再取得を試みます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -417,7 +422,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
             if retry_count == 5:
                 sys.stderr.write('tool["tool_outputs"] が空？取得できませんでした。終了します。\n')
                 sys.stderr.flush()
-                get_rundetail(token, url, siteid, runid, False, tool_names, False)
+                get_rundetail(token, url, siteid, runid, False, tool_names, False, version=version)
                 sys.exit(1)
             else:
                 sys.stderr.write('モジュール名(%s)のtool["tool_outputs"] が空？５秒後に再取得します。\n'%tool["tool_name"])
@@ -428,6 +433,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
         # ここまでくれば情報取得成功？
         break
 
+    # 20210603 : 2106ではfile_pathによるファイル取得方法が変更になったため
+    headers_for_assetapi = {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/octet-stream', 'Accept': 'application/octet-stream'}
     for tool in wf_tools:
         tool_outputs = tool["tool_outputs"]
         for item in tool_outputs:
@@ -464,10 +471,15 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                 sys.stderr.write("file_size(%d)はあるが、URL(%s)が不完全なので取得しません。\n"%(item["file_size"], weburl))
                 sys.stderr.flush()
                 continue
+            # 20210603 : ワークフローAPI V4で入出力ファイルURL取得のfile_pathがgpdb-apiからasset-apiに変更になったため判定する。
+            api_type = weburl.split("/")[3]
             while True:
                 try:
                     timeout = (10.0, 600.0)
-                    res = mintWorkflowAPI(token, weburl, method="get_noheader", timeout=timeout)
+                    if api_type == "gpdb-api":
+                        res = mintWorkflowAPI(token, weburl, method="get_noheader", timeout=timeout)
+                    else:
+                        res = mintWorkflowAPI(token, weburl, method="get", headers=headers_for_assetapi, timeout=timeout)
                 except MemoryError:
                     sys.stderr.write("%s\n"%traceback.format_exc())
                     sys.stderr.write("%s - ファイルの取得に失敗しました(MemoryError)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -504,7 +516,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
 #        if get_file is True:
 #            break
 
-def wait_running_number_api(url, token, number):
+def wait_running_number_api(url, token, number, version="v3"):
     '''
     現在実行中(runningまたはwating)のランの数がnumber以下になるまで待つ。API版
     '''
@@ -513,7 +525,7 @@ def wait_running_number_api(url, token, number):
     headers = {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Accept': 'application/json'}
     session = requests.Session()
     #weburl = "https://%s:50443/workflow-api/v2/runs"%url
-    weburl = api_url%url
+    weburl = api_url%(url, version)
 
     number = int(number)
     while True:
@@ -578,6 +590,9 @@ def main():
     description = None
     downloaddir = None
     nodownload = True
+    config = None
+    conf_file = None
+    version = "v3"
     global STOP_FLAG
 
     for i in range(1, len(sys.argv)):
@@ -615,10 +630,45 @@ def main():
             description = items[1]
         elif items[0] == "downloaddir":         # ダウンロードディレクトリの指定
             downloaddir = items[1]
+        elif items[0] == "conf":                # パラメータ構成ファイル
+            conf_file = items[1]
+        elif items[0] == "version":             # APIバージョン指定
+            version = items[1]
         else:
             if len(items) != 2:
                 continue
             input_params[items[0]] = items[1]   # 与えるパラメータ
+
+    if conf_file is not None:
+        sys.stdout.write("パラメータを構成ファイル(%s)から読み込みます。\n"%conf_file)
+        infile = open(conf_file, "r", encoding=CHARSET_DEF)
+        try:
+            config = json.load(infile)
+        except json.decoder.JSONDecodeError as e:
+            sys.stderr.write("%sを読み込み中の例外キャッチ\n"%conf_file)
+            sys.stderr.write("%s\n"%e)
+            sys.exit(1)
+        infile.close()
+
+    if config is not None:
+        for item in list(config.keys()):
+            if item == "workflow_id":
+                workflow_id = config["workflow_id"]
+            elif item == "token":
+                token = config["token"]
+            elif item == "misystem":
+                url = config["misystem"]
+            elif item == "timeout":
+                timeout = int(config["timeout"])
+            elif item == "siteid":
+                siteid = config["siteid"]
+            elif item == "description":
+                description = config["description"]
+            elif item == "downloaddir":
+                downloaddir = config["downloaddir"]
+            else:
+                sys.stderr.write("未知のキー(%s)です。"%item)
+                sys.stderr.flush()
 
     if workflow_id is None or url is None:
         print("Usage")
@@ -647,8 +697,8 @@ def main():
         uid, token = openam_operator.miLogin(url, "ログイン情報入力")
 
     if token is None:
-        os.stderr.write("ログインに失敗しました。\n")
-        os.stderr.flush()
+        sys.stderr.write("ログインに失敗しました。\n")
+        sys.stderr.flush()
         sys.exit(1)
 
     if seed is None:
@@ -684,7 +734,7 @@ def main():
             else:
                 wait_running_number(url, token, number)
             print("\n------ %06s -------"%i)
-        ret = workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description, downloaddir=downloaddir, nodownload=nodownload)
+        ret = workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description, downloaddir=downloaddir, nodownload=nodownload, version=version)
         time.sleep(1.0)
         if number == "-1":
             break

@@ -49,7 +49,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0), debug=False, read_uncomplete=False):
+def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0), debug=False, read_uncomplete=False, version="v3"):
     '''
     入出力ファイルURL一覧の取得
     @param token (string) APIトークン
@@ -60,11 +60,12 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
     @param timeout (tuple) タイムアウトを接続確立用とその後の応答用の２つを指定する
     @param debug (bool) Trueなら応答ボディを表示して終わり
     @param read_uncomplete (bool) file_pathキーの値の最後がrun/で終わっていても読む。
+    @param version (string) workflow-apiのバージョン指定
     '''
 
     # 結果ファイルの取得
     #weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
-    weburl = "https://%s:50443/workflow-api/v3/runs/%s/data"%(url, runid)
+    weburl = "https://%s:50443/workflow-api/%s/runs/%s/data"%(url, version, runid)
     retry_count = 0
     while True:
         if STOP_FLAG is True:
@@ -98,6 +99,8 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                 return False, "%s -- %03d : RunID(%s) 結果取得失敗。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid)
             else:
                 sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗。10秒後に再取得を試みます。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid))
+                sys.stderr.write("%s -- %03d : URL - %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, weburl))
+                sys.stderr.flush()
                 time.sleep(10.0)
             retry_count += 1
             continue
@@ -245,6 +248,7 @@ def main():
     result = False
     timeout = [10, 30]
     debug = False
+    version = "v3"
     global STOP_FLAG
 
     for items in sys.argv:
@@ -272,6 +276,8 @@ def main():
                 pass
         elif items[0] == "debug":               # デバッグ（応答ボディのみ表示して終わり）
             debug = True
+        elif items[0] == "version":             # APIバージョン指定
+            version = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -283,6 +289,7 @@ def main():
         print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
         print("              siteid  : siteで＋５桁の数字。site00002など")
         print("             timeout  : 読み込みタイムアウトを設定する。秒。接続確立時ではない。")
+        print("             version  : workflow-apiのバージョン番号（デフォルト v3）")
         sys.exit(1)
 
     timeout = tuple(timeout)
@@ -295,7 +302,7 @@ def main():
             name = input("ログインID: ")
         password = getpass("パスワード: ")
         ret, uid, token = openam_operator.miauth(url, name, password)
-    ret, ret_dict = get_runiofile(token, url, siteid, run_id, result, timeout=timeout, debug=debug)
+    ret, ret_dict = get_runiofile(token, url, siteid, run_id, result, timeout=timeout, debug=debug, version=version)
     sys.stderr.write("%s\n"%json.dumps(ret_dict, indent=2, ensure_ascii=False))
 
 if __name__ == '__main__':

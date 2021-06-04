@@ -81,7 +81,7 @@ def getAuthInfo(url=None):
 
     return ret, uid, token
 
-def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 30.0), error_print=True):
+def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, headers=None, method="get", timeout=(10.0, 30.0), error_print=True):
     '''
     API呼び出し
     2020/08/17: Y.Manaka 関数名変更のためラッパーを作成する
@@ -91,15 +91,17 @@ def nodeREDWorkflowAPI(token, weburl, params=None, invdata=None, json=None, meth
     warn_msg = "`nodeREDWorkflowAPI`関数は2020年度中に削除予定です。\n変わりに mintWorkflowAPIを使ってください。"
     warnings.warn(warn_msg, UserWarning)
 
-    return mintWorkflowAPI(token, weburl, params, invdata, json, method, timeout, error_print)
+    return mintWorkflowAPI(token, weburl, params, invdata, json, headers, method, timeout, error_print)
 
-def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, method="get", timeout=(10.0, 60.0), error_print=True):
+def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, headers=None, method="get", timeout=(10.0, 60.0), error_print=True):
     '''
     API呼び出し
     '''
 
-    # ヘッダー
-    headers = {'Authorization': 'Bearer ' + token,
+
+    if headers is None:
+        # ヘッダー
+        headers = {'Authorization': 'Bearer ' + token,
                'Content-Type': 'application/json',
                'Accept': 'application/json'}
 
