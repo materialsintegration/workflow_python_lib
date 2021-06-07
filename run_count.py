@@ -64,7 +64,7 @@ def main():
 
     for item in items:
         workflow_id = item["workflow_id"].split("/")[-1]
-        retval, ret = get_runlist_fromDB(siteid, workflow_id, version=version)
+        retval, ret = get_runlist_fromDB(siteid, workflow_id)
         if len(ret) == 0:
             print("%s はランがありませんでした。"%workflow_id)
         else:
