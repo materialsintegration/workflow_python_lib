@@ -25,6 +25,7 @@ def main():
     token = None
     timeout = None
     siteid = "site00002"
+    version = "v3"
 
     for items in sys.argv:
         items = items.split(":")
@@ -42,25 +43,28 @@ def main():
                 timeout = None
         elif items[0] == "siteid":              # site ID
             siteid = items[1]
+        elif items[0] == "version":             # バージョン指定
+            version = items[1]
 
     if url is None:
         print("Usage")
         print("   $ python %s token:yyyy misystem:URL"%(sys.argv[0]))
         print("               token  : オプション 64文字のAPIトークン")
         print("             misystem : 必須 dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("            version   : ワークフローAPIのバージョン指定（デフォルトはv3）")
         sys.exit(1)
 
     if token is None:
         uid, token = openam_operator.miLogin(url, "MIシステム管理者(%s)のログイン情報"%url)
 
-    weburl = "https://%s:50443/workflow-api/v2/workflows"%url
-    res = nodeREDWorkflowAPI(token, weburl)
+    weburl = "https://%s:50443/workflow-api/%s/workflows"%(url, version)
+    res = mintWorkflowAPI(token, weburl)
     items = res.json()["workflows"]
     print(len(items))
 
     for item in items:
         workflow_id = item["workflow_id"].split("/")[-1]
-        retval, ret = get_runlist_fromDB(siteid, workflow_id)
+        retval, ret = get_runlist_fromDB(siteid, workflow_id, version=version)
         if len(ret) == 0:
             print("%s はランがありませんでした。"%workflow_id)
         else:
