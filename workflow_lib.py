@@ -389,17 +389,25 @@ class MIApiCommandClass(object):
         #print('%s args : %s'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), args))
         self.solver_logfile = open(SOLVER_LOGFILE, "a")
 
-    def ExecSolver(self, cmd=None, not_errors=None, do_postprocess=True):
+    def ExecSolver(self, cmd=None, not_errors=None, do_postprocess=True, stdout=sys.stdout, stderr=sys.stderr):
         '''
         ソルバーを実行します。
         @param cmd(string) 実行したいプログラムのパス、他。
         @param not_errors(bool) True:指定したコマンドが異常終了でもモジュール実行プログラムとして正常終了する Falseまたは指定し無い場合異常終了する。
         @param do_postprocess(bool) False:コマンド終了後出力ファイルとポート名のシンボリックリンクを作成しない
+        @param stdout(_io.TextIOWrapper) 標準出力接続先(issue #18)
+        @param stderr(_io.TextIOWrapper) 標準エラー接続先(issue #18)
         @retval
         '''
 
         if cmd is None:
             raise Exception("There is no execute command.")
+
+        # ファイル出力できないインスタンスの場合sys.stdout/sys.stderrにする(issue #18)
+        if isinstance(stdout, io.TextIOWrapper) is False:
+            stdout = sys.stdout
+        if isinstance(stderr, io.TextIOWrapper) is False:
+            stderr = sys.stderr
 
         print('%s exec command in %s'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), os.getcwd()), flush=True)
         print('%s exec command bellow'%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), flush=True)
@@ -414,17 +422,21 @@ class MIApiCommandClass(object):
         # 実行中の標準出力と標準エラー出力を貯める
         while True:
             temp1 = ret.stdout.read()
-            stdout = "%s\n"%temp1.decode('utf-8')
+            astdout = "%s\n"%temp1.decode('utf-8')
             temp2 = ret.stderr.read()
-            stderr = "%s\n"%temp2.decode('utf-8')
+            astderr = "%s\n"%temp2.decode('utf-8')
             if temp1:
-                stdouts += stdout
-                sys.stdout.write("%s\n"%stdout)
-                sys.stdout.flush()
+                stdouts += astdout
+                #sys.stdout.write("%s\n"%stdout)
+                #sys.stdout.flush()
+                stdout.write("%s\n"%astdout)
+                stdout.flush()
             if temp2:
-                stderrs += stderr
-                sys.stderr.write("%s\n"%stderr)
-                sys.stderr.flush()
+                stderrs += astderr
+                #sys.stderr.write("%s\n"%stderr)
+                #sys.stderr.flush()
+                stderr.write("%s\n"%astderr)
+                stderr.flush()
 
             if not temp1 and ret.poll() is not None:
                 break
