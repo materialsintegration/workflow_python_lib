@@ -32,6 +32,8 @@ def main():
     run_status = {"completed":"完了",
                   "running":"実行中",
                   "waiting":"待機中"}
+    hostid = None
+    api_version = "v3"
 
     for items in sys.argv:
         items = items.split(":")
@@ -63,10 +65,16 @@ def main():
 
     if url == "nims.mintsys.jp":
         hostid = "192.168.1.231"
+        api_version = "v4"
     elif url == "u-tokyo.mintsys.jp":
         hostid = "192.168.1.242"
     elif url == "dev-u-tokyo.mintsys.jp":
         hostid = "192.168.1.142"
+
+    if hostid is None:
+        os.stderr.write("無効なMIntシステムホスト名です。(%s)\n"%url)
+        os.stderr.flush()
+        sys.exit(1)
 
     #retval, run_list = get_runlist(token, url, siteid, workflow_id, True)
     retval, run_list = get_runlist_fromDB(siteid, workflow_id, hostid, True)
@@ -93,7 +101,7 @@ def main():
             uuid = run_id["uuid"].decode()
             print("  ランは削除されています。UUID='%s'"%uuid)
         else:
-            rundetail = get_rundetail(token, url, siteid, run_id["run_id"])
+            rundetail = get_rundetail(token, url, siteid, run_id["run_id"], version=api_version)
             uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
         #dirname = os.path.join("/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32]), "W000020000000197/W000020000000197_ＮｉーＡｌのγ’析出組織形成（等温時効）_02")
         dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
