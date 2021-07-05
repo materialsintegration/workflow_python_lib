@@ -61,7 +61,9 @@ def main():
         os.stderr.flush()
         sys.exit(1)
 
-    if url == "nims.mintsys.jp" or url == "u-tokyo.mintsys.jp":
+    if url == "nims.mintsys.jp":
+        hostid = "192.168.1.231"
+    elif url == "u-tokyo.mintsys.jp":
         hostid = "192.168.1.242"
     elif url == "dev-u-tokyo.mintsys.jp":
         hostid = "192.168.1.142"
