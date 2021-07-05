@@ -153,8 +153,9 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3
             print("%s - 接続がタイムアウトしました(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
             return False, res
         print("%s - 異常な終了コードを受信しました(%d)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
-        time.sleep(120)
-        print(res.text)
+        #time.sleep(120)
+        #if res.status_code != 500:
+        #    print(res.text)
         return False, res
 
     runs = res.json()["runs"]

@@ -162,12 +162,18 @@ def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, headers
     
     if res.status_code != 200 and res.status_code != 201:
         if error_print is True:
-            sys.stderr.write("%s - \n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
-            sys.stderr.write("error   : \n")
+            sys.stderr.write("%s - API実行に失敗しました。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            #sys.stderr.write("error   : \n")
             sys.stderr.write('status  : %s\n'%str(res.status_code))
-            sys.stderr.write('body    : %s\n'%res.text)
-            sys.stderr.write('-------------------------------------------------------------------\n')
-            sys.stderr.write('url     : %s\n'%weburl)
+            try:
+                sys.stderr.write('code    : %s\n'%res.json()["errors"][0]["code"])
+                sys.stderr.write('message : %s\n'%res.json()["errors"][0]["message"])
+                sys.stderr.write('-------------------------------------------------------------------\n')
+                sys.stderr.write('url     : %s\n'%weburl)
+            except:
+                sys.stderr.write('body    : %s\n'%res.text)
+                sys.stderr.write('-------------------------------------------------------------------\n')
+                sys.stderr.write('url     : %s\n'%weburl)
             #return False, res
             #sys.exit(1)
 
