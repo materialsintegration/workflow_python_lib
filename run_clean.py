@@ -106,7 +106,7 @@ def main():
         else:
             rundetail = get_rundetail(token, url, siteid, run_id["run_id"], version=api_version)
             if rundetail is False:
-                print("")
+                print("  ランの開始日時：%s"%run_id["start"])
                 continue
 
             uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
