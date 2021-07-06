@@ -111,6 +111,9 @@ def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=Fal
     site_id = int(siteid[5:])
     w_id = "%d%s"%(site_id, workflow_id[6:])
 
+    offset = 0
+    if hostID == "192.168.1.231":
+        offset = 2
     db = mysql.connector.connect(host=hostID, user="root", password="P@ssw0rd")
     cursor = db.cursor()
     cursor.execute("use workflow")
@@ -125,12 +128,12 @@ def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=Fal
         run_info["run_id"] = "R%015d"%item[0]
         run_info["status"] = DB_RUN_STATUS[str(item[6])]
         run_info["description"] = item[3]
-        run_info["start"] = item[19]
-        run_info["end"] = item[20]
+        run_info["start"] = item[19 + offset]
+        run_info["end"] = item[20 + offset]
         run_info["completion"] = item[10]
         run_info["workflow_name"] = ""
         run_info["uuid"] = item[5]
-        run_info["deleted"] = str(item[15])
+        run_info["deleted"] = str(item[15 + offset])
         run_lists.append(run_info)
 
     return True, run_lists
