@@ -80,10 +80,10 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     elif retval["status"] == "abend" or retval["status"] == "canceled":
         if retval["status"] == "abend":
             if tool_names is None:
-                sys.stderr.write("%s - ランが異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.write("%s - ランは異常終了しています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         else:
             if tool_names is None:
-                sys.stderr.write("%s - ランがキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.write("%s - ランはキャンセルされてます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
     if debug is True:
         print("%s\n"%json.dumps(retval, indent=2, ensure_ascii=False))
