@@ -128,9 +128,9 @@ def main():
             ret = subprocess.run(extra_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if ret != "":
                 print("  %s"%ret)
-                sys.stdout.write(stdout)
+                sys.stdout.write(ret.stdout)
                 sys.stdout.flush()
-                sys.stderr.write(stderr)
+                sys.stderr.write(ret.stderr)
                 sys.stderr.flush()
 
 if __name__ == '__main__':
