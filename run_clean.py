@@ -124,13 +124,14 @@ def main():
         if run_id["status"] != "running" and run_id["status"] != "waiting":
             extra_cmd = extra_cmd.replace("\\", "")
             print("  コマンド(%s)実行中"%extra_cmd)
-            print("")
+            print("  %s"%dirname)
             ret = subprocess.run(extra_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if ret != "":
-                sys.stdout.write(ret.stdout.decode("utf8"))
+                sys.stdout.write("  %s"%ret.stdout.decode("utf8"))
                 sys.stdout.flush()
-                sys.stderr.write(ret.stderr.decode("utf8"))
+                sys.stderr.write("  %s"%ret.stderr.decode("utf8"))
                 sys.stderr.flush()
+            print("")
 
 if __name__ == '__main__':
     main()
