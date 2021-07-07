@@ -125,9 +125,13 @@ def main():
             extra_cmd = extra_cmd.replace("\\", "")
             print("  コマンド(%s)実行中"%extra_cmd)
             print("")
-            ret = subprocess.run(extra_cmd, shell=True)
+            ret = subprocess.run(extra_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if ret != "":
                 print("  %s"%ret)
+                sys.stdout.write(stdout)
+                sys.stdout.flush()
+                sys.stderr.write(stderr)
+                sys.stderr.flush()
 
 if __name__ == '__main__':
     main()
