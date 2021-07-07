@@ -127,7 +127,6 @@ def main():
             print("")
             ret = subprocess.run(extra_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             if ret != "":
-                print("  %s"%ret)
                 sys.stdout.write(ret.stdout.decode("utf8"))
                 sys.stdout.flush()
                 sys.stderr.write(ret.stderr.decode("utf8"))
