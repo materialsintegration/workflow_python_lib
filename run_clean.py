@@ -94,7 +94,7 @@ def main():
         elif run_id["status"] == "failure":
             print("%s - ランは起動失敗しています。"%run_id["start"])
         elif run_id["status"] == "completed":
-            print("%s - ランは完了しています。(%s)"%(run_id["completion"], run_id["end"])
+            print("%s - ランは完了しています。(%s)"%(run_id["completion"], run_id["end"]))
         else:
             print("%s - ランは%s状態です。"%(run_id["start"], run_status[run_id["status"]]))
         if run_id["deleted"] == "1":
