@@ -168,9 +168,11 @@ def main():
                 if amount.endswith("K\t.") is True:
                     s_amount = float(amount.split("K")[0]) * 1024
                 elif amount.endswith("M\t.") is True:
-                    s_amount = float(amount.split("K")[0]) * 1024 * 1024
+                    s_amount = float(amount.split("M")[0]) * 1024 * 1024
+                elif amount.endswith("G\t.") is True:
+                    s_amount = float(amount.split("G")[0]) * 1024 * 1024 * 1024
                 elif amount.endswith("T\t.") is True:
-                    s_amount = float(amount.split("K")[0]) * 1024 * 1024 * 1024
+                    s_amount = float(amount.split("T")[0]) * 1024 * 1024 * 1024 * 1024
                 else:
                     s_amount = float(amount)
                 if s_amount > hilite_threashold:
