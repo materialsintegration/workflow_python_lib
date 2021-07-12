@@ -14,6 +14,11 @@ import sys, os
 from glob import glob
 import subprocess
 import datetime
+no_rich = False
+try:
+    import rich
+except:
+    no_rich = True
 
 sys.path.append("/home/misystem/assets/modules/workflow_python_lib")
 from workflow_runlist import *
@@ -34,6 +39,8 @@ def main():
                   "waiting":"待機中"}
     hostid = None
     api_version = "v3"
+    start_from = None
+    hilite_threashold = None
 
     for items in sys.argv:
         items = items.split(":")
@@ -52,8 +59,43 @@ def main():
             siteid = items[1]
         elif items[0] == "excmd":               # 実行中以外の時に実行するコマンドの指定
             extra_cmd = items[1]
+        elif items[0] == "threashold":          # 表示する容量をハイライトするしきい値
+            hilite_threashold = items[1]
+        elif items[0] == "date_from":           # 開始日がこの日付以降のみを対象とする。
+            start_from = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
+
+    # 日付の確認
+    if start_from is not None:
+        if len(start_from.split("/")) == 3:
+            start_time = datetime.datetime(int(start_from.split("/")[0]), int(start_from.split("/")[1]), int(start_from.split("/")[2]))
+        else:
+            print("日付の指定が間違っています。(年/月/日(%s))"%start_from)
+            sys.exit(1)
+
+    # しきい値の確認
+    if hilite_threashold is not None:
+        if hilite_threashold.endswith("t") is True:
+            hilite_threashold = float(hilite_threashold.split("t")[0]) * 1024 * 1024 * 1024 * 1024
+        elif hilite_threashold.endswith("T") is True:
+            hilite_threashold = float(hilite_threashold.split("T")[0]) * 1024 * 1024 * 1024 * 1024
+        elif hilite_threashold.endswith("g") is True:
+            hilite_threashold = float(hilite_threashold.split("g")[0]) * 1024 * 1024 * 1024
+        elif hilite_threashold.endswith("G") is True:
+            hilite_threashold = float(hilite_threashold.split("G")[0]) * 1024 * 1024 * 1024
+        elif hilite_threashold.endswith("m") is True:
+            hilite_threashold = float(hilite_threashold.split("m")[0]) * 1024 * 1024
+        elif hilite_threashold.endswith("M") is True:
+            hilite_threashold = float(hilite_threashold.split("M")[0]) * 1024 * 1024
+        elif hilite_threashold.endswith("k") is True:
+            hilite_threashold = float(hilite_threashold.split("k")[0]) * 1024
+        elif hilite_threashold.endswith("K") is True:
+            hilite_threashold = float(hilite_threashold.split("K")[0]) * 1024
+        else:
+            hilite_threashold = float(hilite_threashold)
+        if no_rich is True:
+            print("Rich パッケージが無いのでハイライトされません")
 
     if token is None:
         uid, token = openam_operator.miLogin(url, "ログイン情報入力")
@@ -85,6 +127,12 @@ def main():
         return "url : %s\nresponse : %s"%(url, run_list.text)
 
     for run_id in run_list:
+        if start_from is not None:
+            if start_time < run_id["start"]:
+                pass
+            else:
+                #print("run_id : %s は %s より古い(%s)ので対象外です"%(run_id["run_id"], start_time, run_id["start"]))
+                continue
         sys.stdout.write("run(%s) 情報："%run_id["run_id"],)
         sys.stdout.flush()
         if run_id["status"] == "abend":
@@ -116,7 +164,21 @@ def main():
         if extra_cmd is None:
             ret = subprocess.check_output(cmd.split())
             amount = ret.decode("utf-8").split("\n")[0]
-            print("  ディレクトリサイズは %s"%amount)
+            if no_rich is False and hilite_threashold is not None:
+                if amount.endswith("K\t.") is True:
+                    s_amount = float(amount.split("K")[0]) * 1024
+                elif amount.endswith("M\t.") is True:
+                    s_amount = float(amount.split("K")[0]) * 1024 * 1024
+                elif amount.endswith("T\t.") is True:
+                    s_amount = float(amount.split("K")[0]) * 1024 * 1024 * 1024
+                else:
+                    s_amount = float(amount)
+                if s_amount > hilite_threashold:
+                    rich.print(" ディレクトリサイズは [bold red]%s[/bold red]"%amount)
+                else:
+                    print("  ディレクトリサイズは %s"%amount)
+            else:
+                print("  ディレクトリサイズは %s"%amount)
             print("  ランの開始日時：%s"%run_id["start"])
             print("  %s"%dirname)
             print("")
