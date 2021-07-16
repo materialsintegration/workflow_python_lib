@@ -18,11 +18,11 @@ from common_lib import mintWorkflowAPI
 
 CHARSET_DEF = 'utf-8'
 
-api_url = "https://%s:50443/workflow-api/v3/workflows"
+api_url = "https://%s:50443/workflow-api/%s/workflows"
 
 
 def workflow_create(token, url, name, description, prediction_model_id, reference_workflow_id,
-                    reference_workflow_revision, miwf):
+                    reference_workflow_revision, miwf, version):
     '''
     ワークフロー登録
     @param token (string) APIトークン
@@ -33,6 +33,7 @@ def workflow_create(token, url, name, description, prediction_model_id, referenc
     @param reference_workflow_id (string) 登録するワークフローに関連付けたいワークフローID。URI形式
     @param reference_workflow_revision (int) 関連付けたいワークフローのリビジョン番号
     @param miwf (json) 登録するワークフローに設定する、ワークフロー定義
+    @param version (string) ワークフローAPIのバージョン。vを付けること
     @retval ワークフローID（W+15桁の数値）(string)
     '''
 
@@ -48,7 +49,7 @@ def workflow_create(token, url, name, description, prediction_model_id, referenc
     add_params["miwf"] = miwf
 
     # ワークフローの登録
-    weburl = api_url % (url)
+    weburl = api_url % (url, version)
     params = {}
     res = mintWorkflowAPI(token, weburl, params, json.dumps(add_params), method="post",
                           timeout=(300.0, 300.0), error_print=False)
@@ -90,6 +91,7 @@ def main():
     reference_workflow_revision = None
     miwf_file = None
     miwf = None
+    wf_api_version = "v4"
 
     for i in range(1, len(sys.argv)):
         item = sys.argv[i]
@@ -115,6 +117,8 @@ def main():
             reference_workflow_revision = items[1]
         elif items[0] == "miwf_file":          # ワークフロー定義ファイル名
             miwf_file = items[1]
+        elif items[0] == "wf_api_version":     # ワークフローAPIバージョン(vを付けること)。未指定時のデフォルト値はv4
+            wf_api_version = items[1]
 
     if token is None or name is None or url is None:
         print("Usage")
@@ -127,6 +131,7 @@ def main():
         print("      reference_workflow_id : 登録するワークフローに関連付けたいワークフローID。URI形式")
         print("reference_workflow_revision : 関連付けたいワークフローのリビジョン番号(数値)")
         print("                  miwf_file : 登録するワークフローに設定する、ワークフロー定義ファイル名")
+        print("             wf_api_version : ワークフローAPIバージョン(vを付けること)。未指定時のデフォルト値はv4")
         sys.exit(1)
 
     # ワークフロー定義ファイル読み込み
@@ -136,7 +141,8 @@ def main():
 
     # ワークフロー登録
     workflow_id = workflow_create(token, url, name, description, prediction_model_id,
-                                  reference_workflow_id, reference_workflow_revision, miwf)
+                                  reference_workflow_id, reference_workflow_revision, miwf,
+                                  wf_api_version)
 
     if workflow_id is None:
         sys.exit(1)
