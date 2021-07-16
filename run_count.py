@@ -62,9 +62,16 @@ def main():
     items = res.json()["workflows"]
     print(len(items))
 
+    if url == "nims.mintsys.jp":
+        hostid = "192.168.1.231"
+    elif url == "u-tokyo.mintsys.jp":
+        hostid = "192.168.1.242"
+    elif url == "dev-u-tokyo.mintsys.jp":
+        hostid = "192.168.1.142"
+
     for item in items:
         workflow_id = item["workflow_id"].split("/")[-1]
-        retval, ret = get_runlist_fromDB(siteid, workflow_id)
+        retval, ret = get_runlist_fromDB(siteid, workflow_id, hostid)
         if len(ret) == 0:
             print("%s はランがありませんでした。"%workflow_id)
         else:
