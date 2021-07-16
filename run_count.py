@@ -51,6 +51,7 @@ def main():
         print("   $ python %s token:yyyy misystem:URL"%(sys.argv[0]))
         print("               token  : オプション 64文字のAPIトークン")
         print("             misystem : 必須 dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("               siteid : サイトID。開発環境：site00002 運用環境：site00011")
         print("            version   : ワークフローAPIのバージョン指定（デフォルトはv3）")
         sys.exit(1)
 
