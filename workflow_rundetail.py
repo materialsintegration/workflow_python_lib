@@ -32,6 +32,7 @@ prev_workflow_id = None
 input_ports_prev = None
 output_ports_prev = None
 STOP_FLAG = False
+CHARSET_DEF = 'utf-8'
 
 def signal_handler(signum, frame):
     '''
@@ -91,6 +92,8 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
     if debug is True:
         print(dirname)
+        sys.stderr.write("%s\n"%retval["status"])
+        sys.stderr.flush()
 
     if tool_names is None:
         return retval
@@ -198,6 +201,8 @@ def main():
     siteid = None
     url = None
     debug = False
+    conf_file = None
+    version = "v3"
     global STOP_FLAG
 
     for items in sys.argv:
@@ -217,9 +222,43 @@ def main():
             siteid = items[1]
         elif items[0] == "debug":
             debug = True
+        elif items[0] == "conf":                # 構成ファイルの指定
+            conf_file = items[1]
+        elif items[0] == "version":             # APIバージョン
+            version = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
+    if conf_file is not None:
+        sys.stdout.write("パラメータを構成ファイル(%s)から読み込みます。\n"%conf_file)
+        infile = open(conf_file, "r", encoding=CHARSET_DEF)
+        try:
+            config = json.load(infile)
+        except json.decoder.JSONDecodeError as e:
+            sys.stderr.write("%sを読み込み中の例外キャッチ\n"%conf_file)
+            sys.stderr.write("%s\n"%e)
+            sys.exit(1)
+        infile.close()
+
+    if config is not None:
+        for item in list(config.keys()):
+            if item == "workflow_id":
+                workflow_id = config["workflow_id"]
+            elif item == "token":
+                token = config["token"]
+            elif item == "misystem":
+                url = config["misystem"]
+            elif item == "timeout":
+                timeout = int(config["timeout"])
+            elif item == "siteid":
+                siteid = config["siteid"]
+            elif item == "description":
+                description = config["description"]
+            elif item == "downloaddir":
+                downloaddir = config["downloaddir"]
+            else:
+                sys.stderr.write("未知のキー(%s)です。"%item)
+                sys.stderr.flush()
     if token is None or run_id is None or url is None or siteid is None:
         print("Usage")
         print("   $ python %s run_id:Mxxxx token:yyyy misystem:URL"%(sys.argv[0]))
@@ -230,7 +269,7 @@ def main():
         sys.exit(1)
 
     tool_names = []
-    get_rundetail(token, url, siteid, run_id, result, tool_names, debug)
+    get_rundetail(token, url, siteid, run_id, result, tool_names, debug, version)
 
 if __name__ == '__main__':
     main()
