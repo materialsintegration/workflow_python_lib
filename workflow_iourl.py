@@ -235,6 +235,7 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
      
         loop_num += 1
 
+    io_dict[runid]["elapsed"] = "%s"%res.elapsed
     return True, io_dict
 
 def main():
