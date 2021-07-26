@@ -101,6 +101,8 @@ def extract_workflow_params(workflow_id, token, url, version="v3"):
             if item["category"] == "inputdata":
                 #print("port name = %s"%item["name"])
                 input_ports.append([item["name"], item["descriptor"], item["paramtype"], item["required"]])
+            if item["category"] == "inputlist":
+                input_ports.append([item["name"], item["descriptor"], item["paramtype"], item["required"]])
         
         for item in miwf_contents:
             if item["category"] == "outputdata":
