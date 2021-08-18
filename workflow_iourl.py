@@ -49,7 +49,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0), debug=False, read_uncomplete=False, version="v3"):
+def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, timeout=(2.0, 30.0), debug=False, read_uncomplete=False, version="v3", retry_count=5):
     '''
     入出力ファイルURL一覧の取得
     @param token (string) APIトークン
@@ -57,16 +57,18 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
     @param siteid (string) サイトID。e.g. site00002
     @param runid (string) ランID。e.g. R000020000365545
     @param with_result (bool) この関数を実行時、情報を標準エラーに出力するか
+    @param thread_num (int) pythonのスレッド処理で当関数を呼んだときにスレッド番号をセットすると、ログに記録される。
     @param timeout (tuple) タイムアウトを接続確立用とその後の応答用の２つを指定する
     @param debug (bool) Trueなら応答ボディを表示して終わり
     @param read_uncomplete (bool) file_pathキーの値の最後がrun/で終わっていても読む。
     @param version (string) workflow-apiのバージョン指定
+    @param retry_count (int) 呼び出しがエラーの場合のリトライカウント。デフォルトは５。
     '''
 
     # 結果ファイルの取得
     #weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
     weburl = "https://%s:50443/workflow-api/%s/runs/%s/data"%(url, version, runid)
-    retry_count = 0
+    #retry_count = 0
     while True:
         if STOP_FLAG is True:
             return False, ""
@@ -94,15 +96,15 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                     sys.stderr.write("code:%d\n%s\n"%(res.status_code, json.dumps(res.json(), indent=2, ensure_ascii=False)))
                 except:
                     sys.stderr.write("code:%d\n%s\n"%(res.status_code, res.text))
-            if retry_count == 1:
-                sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid))
-                return False, "%s -- %03d : RunID(%s) 結果取得失敗。終了します。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid)
+            if retry_count == 0:
+                sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗。終了します。(リトライカウント残り０)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid))
+                return False, "%s -- %03d : RunID(%s) 結果取得失敗。終了します。(リトライカウント残り０)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid)
             else:
-                sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗。10秒後に再取得を試みます。\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid))
+                sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗。10秒後に再取得を試みます。(リトライカウント残り%d)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid, retry_count))
                 sys.stderr.write("%s -- %03d : URL - %s\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, weburl))
                 sys.stderr.flush()
                 time.sleep(10.0)
-            retry_count += 1
+            retry_count -= 1
             continue
         else:
             break
