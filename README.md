@@ -473,10 +473,11 @@ Usage python3.6 extract_io_ports.py <prediction_id> <modules.xml> [-c[:前段の
   + 登録するワークフローに関連付けたいワークフローID。URI形式
   + 関連付けたいワークフローのリビジョン番号
   + ワークフロー定義(miwf)ファイル名
+  + ワークフローAPIバージョン(vを付けること)。未指定時のデフォルト値はv4
 
   実行方法
   ```
-  python3.6 workflow_create.py token:<APIトークン> misystem:dev-u-tokyo.mintsys.jp name:<ワークフロー名> description:<ワークフロー説明> prediction_model_id:http://mintsys.jp/inventory/prediction-models/M000020000004476 reference_workflow_id:http://mintsys.jp/workflow/workflows/W000020000000324 reference_workflow_revision:1 miwf_file:W000020000000324.miwf
+  python3.6 workflow_create.py token:<APIトークン> misystem:dev-u-tokyo.mintsys.jp name:<ワークフロー名> description:<ワークフロー説明> prediction_model_id:http://mintsys.jp/inventory/prediction-models/M000020000004476 reference_workflow_id:http://mintsys.jp/workflow/workflows/W000020000000324 reference_workflow_revision:1 miwf_file:W000020000000324.miwf wf_api_version:v4
   ```
   実行すると以下のような表示が行われる。  
   ```
@@ -486,7 +487,7 @@ Usage python3.6 extract_io_ports.py <prediction_id> <modules.xml> [-c[:前段の
 * 関数呼び出し  
   importして関数として呼び出すことも可能である。
   ```
-    def workflow_create(token, url, name, description, prediction_model_id, reference_workflow_id, reference_workflow_revision, miwf):
+    def workflow_create(token, url, name, description, prediction_model_id, reference_workflow_id, reference_workflow_revision, miwf, version):
         '''
         ワークフロー登録
         @param token (string) APIトークン
@@ -497,6 +498,7 @@ Usage python3.6 extract_io_ports.py <prediction_id> <modules.xml> [-c[:前段の
         @param reference_workflow_id (string) 登録するワークフローに関連付けたいワークフローID。URI形式
         @param reference_workflow_revision (int) 関連付けたいワークフローのリビジョン番号
         @param miwf (json) 登録するワークフローに設定する、ワークフロー定義 ※ファイル名ではない
+        @param version (string) ワークフローAPIのバージョン。vを付けること
         @retval ワークフローID（W+15桁の数値）(string)
         '''
   ```
