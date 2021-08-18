@@ -171,7 +171,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
                     sys.stderr.flush()
                     sys.exit(1)
                 params["input_data_file"] = base64.b64encode(open(input_params[input_item], "rb").read()).decode('utf-8')
-                #print(params["input_data_file"])
+                #params["input_data_file"] = open(input_params[input_item], "r").read()
             elif target_item[2] == "asset":
                 params["asset_id"] = target_item[1]
             elif target_item[2] == "value" or target_item[2] == "bool":
@@ -191,6 +191,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
         weburl = api_url%(url, version)
         params = {"workflow_id":"%s"%workflow_id}
         res = mintWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(300.0, 300.0), error_print=False)
+        # ↑ 正式呼び出し。↓ テスト用の呼び出し
+        #res = mintWorkflowAPI(token, weburl, params, None, method="post", timeout=(300.0, 300.0), error_print=False)
         
         # 実行の可否
         if res.status_code != 200 and res.status_code != 201:
