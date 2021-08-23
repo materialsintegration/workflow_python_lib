@@ -112,10 +112,10 @@ class MIApiCommandClass(object):
             for job in self.torque_job_list:
                 sys.stderr.write("%s deleting job(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), job))
                 sys.stderr.flush()
-                p = subprocess("ssh headdev-cl qdel %s"%job, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                p = subprocess.Popen("ssh headdev-cl qdel %s"%job, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 p.wait()
 
-        sys.stderr.write("%s 終了\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), signum))
+        sys.stderr.write("%s 終了\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
         sys.stderr.flush()
         sys.exit(0)
 
@@ -134,7 +134,7 @@ class MIApiCommandClass(object):
             for job in self.torque_job_list:
                 sys.stderr.write("%s deleting job(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), job))
                 sys.stderr.flush()
-                p = subprocess("ssh headdev-cl qdel %s"%job, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                p = subprocess.Popen("ssh headdev-cl qdel %s"%job, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 p.wait()
 
         sys.stderr.write("%s 終了\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
@@ -154,6 +154,27 @@ class MIApiCommandClass(object):
 
         self.torque_job_list.remove(job_id)
 
+    def surveillanceTorqueJob(self):
+        '''
+        parent_job_idと登録してあるジョブ番号で、parent_job_survei.shを起動して監視する。
+        @param parent_job_id(string)
+        '''
+
+        if len(self.torque_job_list) == 0:
+            return
+
+        params = "%s stdout"%self.myjob_id
+        for item in self.torque_job_list:
+            params += " %s"%item
+
+        sys.stdout.write('%s execute - ssh $MISYSTEM_HEADNODE_HOSTNAME "cd %s; qsub /home/misystem/assets/modules/workflow_python_lib/parent_job_survei.sh -F \'%s\' -o ./ -e ./" > stdout 2>&1\n'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), os.getcwd(), params))
+        sys.stdout.flush()
+        cmd = 'ssh $MISYSTEM_HEADNODE_HOSTNAME "cd %s; qsub /home/misystem/assets/modules/workflow_python_lib/parent_job_survei.sh -F \'%s\' -o ./ -e ./" >> stdout 2>&1'%(os.getcwd(), params)
+        ret = subprocess.getoutput(cmd)
+
+        sys.stdout.write("%s surveillance job(%s) executed.\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), ret))
+        sys.stdout.flush()
+        
     def log_solver_start(self, solver_id):
         '''
         ソルバー実行開始記録

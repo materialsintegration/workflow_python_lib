@@ -8,7 +8,6 @@ check_parent_job() {
     fi
     
     myjob_id=$1
-    echo "myjob_id = $myjob_id"
     shift
     
     if [ "$1" = "" ]; then
@@ -16,8 +15,9 @@ check_parent_job() {
         exit 1
     fi
     
-    logfilename=($1)
-    echo "logfilename = $logfilename"
+    logfilename=$1
+    echo "logfilename = $logfilename" >> $logfilename
+    echo "myjob_id = $myjob_id" >> $logfilename
     shift
     
     if [ "$1" = "" ]; then
@@ -26,7 +26,7 @@ check_parent_job() {
     fi
     
     jobids=($@)
-    echo "job ids = ${jobids[@]}"
+    echo "job ids = ${jobids[@]}" >> $logfilename
 
     cd $PBS_O_WORKDIR
     while [ 1 = 1 ]; 
@@ -37,7 +37,7 @@ check_parent_job() {
             ret=`cat qsub_myjob.log | awk NR==3 | awk '{print $5}'`
             # 終了検知
             if [ $ret = "C" ]; then
-                echo "`date +%Y/%m/%d-%H:%M:%S` parent job ended. will stop femccv job(s)" >> $logfilename
+                echo "`date +%Y/%m/%d-%H:%M:%S` parent job ended. will stop child job(s)" >> $logfilename
                 for item in ${jobids[@]}
                 do
                     echo "`date +%Y/%m/%d-%H:%M:%S` : ssh $MISYSTEM_HEADNODE_HOSTNAME qdel $item" >> $logfilename
@@ -50,7 +50,7 @@ check_parent_job() {
             echo "`date +%Y/%m/%d-%H:%M:%S` cannot get status of parent job($myjob_id)" >> $logfilename
             for item in ${jobids[@]}
             do
-                echo "`date +%Y/%m/%d-%H:%M:%S` parent job dead?. will stop femccv job(s)" >> $logfilename
+                echo "`date +%Y/%m/%d-%H:%M:%S` parent job dead? stop child job(s)" >> $logfilename
                 echo "`date +%Y/%m/%d-%H:%M:%S` : ssh $MISYSTEM_HEADNODE_HOSTNAME qdel $item" >> $logfilename
                 ssh $MISYSTEM_HEADNODE_HOSTNAME qdel $item
             done
