@@ -182,31 +182,34 @@ ERFH5(拡張子erfh5)フォーマットを読むためのライブラリ
 sequenceDiagram;
 
 participant A as user
-participant B as This program
+participant B as このプログラム
 participant C as MInt System
 
 A->>B:execute
-alt check workflow execute
-  B->>C:WF-API(request run status)
-  C->>B:response run nubmer
+alt ラン実行成功の確認
+  B->>C:ステータス確認(WF-API)
+  C->>B:ラン番号の返信(WF-API)
+  B->>A:ラン番号(stderr)、実行時ディレクトリ、ラン詳細ページURLの表示(stdout)
 else faild
-  C->>B:response error reason
-  B->>A:inform error reason and exit
+  C->>B:エラー情報の返信(WF-API)
+  B->>A:エラー情報の表示後終了
 end
-alt check workflow status
-   B->>B:loop
-   C->>B:response run status
+alt 実行状況の確認
+  B->>C:ラン詳細の確認(WF-API)
+  C->>B:ラン詳細の返信(WF-API)
+  B->>B:loop
 else faild
-   C->>B:response error reason
-   B->>A:inform error reason and exit
+  C->>B:エラー情報の返信(WF-API)
+  B->>A:エラー情報の表示後終了
 end
-alt workflow run end
-  C->>B:response run end message
+alt ワークフローの終了時
+  B->>C:ラン詳細の確認(WF-API)
+  C->>B:ラン詳細の返信(WF-API)
+  B->>A:終了が確認されたので、出力ポートのダウンロード（もし指定があれば）して終了。
 else faild
-  C->>B:response error reason
-  B->>A:inform error reason, get stdout message and exit
+  C->>B:エラー情報の返信(WF-API)
+  B->>A:エラー情報の表示後、各モジュールのstdoutを取得、保存して終了
 end
-B->>A:inform workflow run end and get result files to under /tmp directory.
 ```
 * 準備  
   必要なパラメータ（ポート名）をworkflow_params.pyを実行して取得しておく。
@@ -218,8 +221,28 @@ B->>A:inform workflow run end and get result files to under /tmp directory.
   + 必要なポート名と対応するファイル名
   上記workflow_params.pyの実行結果を参考にすると以下のようになる。
   ```
-  python3.6 /home/misystem/assets/modules/workflow_python_lib/workflow_execute.py workflow_id:W000020000000219 token:64文字のトークンを指定する misystem:dev-u-tokyo.mintsys.jp weld_shape_pf_param_py_01:weld_shape_pf_param.py クランプ終了時間_01:Clamping_End_Time.dat クランプ開始時間_01:Clamping_Initial_Time.dat 入熱量_01:Energy.dat 冷却終了温度_01:Cooling_End_Time.dat 冷却開始時間_01:Cooling_Initial_Time.dat 初期温度_01:Initial_Temperature.dat 初期組織の相分率_01:init_microstructure.txt 効率_01:Efficiency.dat 溶接幅_01:Width.dat 溶接終了時間_01:Welding_End_Time.dat 溶接長さ_01:Length.dat 溶接開始時間_01:Welding_Initial_Time.dat 熱源移動速度_01:Velocity.dat 環境温度_01:Amient_Temp.dat 貫通_01:Penetration.dat number:-1
+  python3.6 /home/misystem/assets/modules/workflow_python_lib/workflow_execute.py workflow_id:W000020000000219 token:64文字のトークンを指定する misystem:dev-u-tokyo.mintsys.jp weld_shape_pf_param_py_01:weld_shape_pf_param.py クランプ終了時間_01:Clamping_End_Time.dat クランプ開始時間_01:Clamping_Initial_Time.dat 入熱量_01:Energy.dat 冷却終了温度_01:Cooling_End_Time.dat 冷却開始時間_01:Cooling_Initial_Time.dat 初期温度_01:Initial_Temperature.dat 初期組織の相分率_01:init_microstructure.txt 効率_01:Efficiency.dat 溶接幅_01:Width.dat 溶接終了時間_01:Welding_End_Time.dat 溶接長さ_01:Length.dat 溶接開始時間_01:Welding_Initial_Time.dat 熱源移動速度_01:Velocity.dat 環境温度_01:Amient_Temp.dat
   ```
+  + 構成ファイルの書式
+    - JSON準拠である(inputsは2021年9月13日現在実装中で使用不可である)
+      ```
+      {
+      "workflow_id":"Wxxxxxyyyyyyyyyy",
+      "token":"64文字の文字列",
+      "misystem":"MIntシステムのURL",
+      "timeout":"タイムアウト１,タイムアウト２",
+      "siteid":"sitexxxxx",
+      "description":"任意の長さの文字列",
+      "downloaddir":"出力ポート値保存場所",
+      "inputs":{
+         "クランプ終了時間_01":["file", "Clamping_End_Time.dat"],
+         "溶接終了時間_01":["value", 10.04],
+         "初期組織の相分率_01":["AssetID", "A0012300000000000123"],
+         "weld_shape_pf_param_py_01":["value", "weld_shape_pf_param.py"],
+         }
+      }
+      ```
+         
 
   ※ number:-1 は連続実行用のパラメータ指定子。-1なのはこのプログラムはnumberに1以上の整数を指定すると、同時実行中のランが指定した数以下のうちは連続してランを実行する。-1の場合は1つ実行し、終了したら、実行プログラムを終了する。
 
