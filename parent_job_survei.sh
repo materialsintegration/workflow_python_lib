@@ -1,5 +1,6 @@
 #!/bin/bash
 #PBS -q ex_queue
+#PBS -l nodes=1:non-calc-node
 
 check_parent_job() {
     if [ "$1" = "" ]; then
