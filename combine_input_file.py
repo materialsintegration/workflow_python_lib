@@ -26,7 +26,6 @@ def readInputFile(filename):
     if os.path.exists(filename) is True:
         with open(filename, 'r', encoding=encode) as fp:
             dat = fp.read()
-        print("-- readInputFile() " + os.path.basename(filename) + "=" + dat)
     else:
         print("-- readInputFile() ファイルが存在しません。" + filename)
         sys.exit(1)
