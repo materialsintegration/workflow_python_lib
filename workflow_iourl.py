@@ -95,7 +95,7 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                 try:
                     sys.stderr.write("code:%d\n%s\n"%(res.status_code, json.dumps(res.json(), indent=2, ensure_ascii=False)))
                 except:
-                    sys.stderr.write("code:%d\n%s\n"%(res.status_code, res.text))
+                    sys.stderr.write("code:%s\n%s\n"%(res.status_code, res.text))
             if retry_count == 0:
                 sys.stderr.write("%s -- %03d : RunID(%s) 結果取得失敗。終了します。(リトライカウント残り０)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid))
                 return False, "%s -- %03d : RunID(%s) 結果取得失敗。終了します。(リトライカウント残り０)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), thread_num, runid)
@@ -156,13 +156,19 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             #    else:
             #        param_name += "_" + params[i]
             #<== 2021/04/05
-            if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
-                io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
-            else:
-                sys.stderr.write("run_id(%s) のworkflow_inputsのうち%sのポートのURLが不完全です\n"%(runid, item["parameter_name"]))
-                sys.stderr.flush()
-                if read_uncomplete is True:
+            #==> 2021/09/06 v4になってfile_sizeが無い場合はサイズを０にして返す
+            if version == "v3":
+                if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
                     io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                else:
+                    sys.stderr.write("run_id(%s) のworkflow_inputsのうち%sのポートのURLが不完全です\n"%(runid, item["parameter_name"]))
+                    sys.stderr.flush()
+            else:
+                if ("file_size" in item) is False:
+                    item["file_size"] = 0
+
+            if read_uncomplete is True:
+                io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
         # ワークフロー出力ポートの処理
         workflow_outputs = url_list["workflow_outputs"]

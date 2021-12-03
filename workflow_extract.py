@@ -36,7 +36,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def workflow_run(workflow_id, token, url, input_params, number, seed=None):
+def workflow_run(workflow_id, token, url, input_params, number, seed=None, version="v3"):
     '''
     ワークフロー実行
     '''
@@ -48,7 +48,7 @@ def workflow_run(workflow_id, token, url, input_params, number, seed=None):
 
     # 前回と同じworkflow_idなら詳細を取得しない。
     if prev_workflow_id != workflow_id:
-        weburl = "https://%s:50443/workflow-api/v2/workflows/%s"%(url, workflow_id)
+        weburl = "https://%s:50443/workflow-api/%s/workflows/%s"%(url, version, workflow_id)
         res = nodeREDWorkflowAPI(token, weburl)
         retval = res.json()
     else:
@@ -69,6 +69,7 @@ def main():
     input_params = {}
     workflow_id = None
     seed = None
+    version = "v3"
     number = "0"
 
     for items in sys.argv:
@@ -86,10 +87,31 @@ def main():
             number = items[1]
         elif items[0] == "seed":                # random種の指定
             seed = items[1]
+        elif items[0] == "version":             # API Version
+            version = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
-    workflow_run(workflow_id, token, url, input_params, number, seed)
+    if workflow_id is None or url is None:
+        print("Usage")
+        print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL"%(sys.argv[0]))
+        print("          workflow_id : Mで始まる16桁のワークフローID")
+        print("               token  : 64文字のAPIトークン")
+        print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("             version  : WF-APIバージョン指定。デフォルトv3")
+        sys.exit(1)
+
+
+    # APIトークンの取得
+    if token is None:
+        uid, token = openam_operator.miLogin(url, "ログイン情報入力")
+
+    if token is None:
+        os.stderr.write("ログインに失敗しました。\n")
+        os.stderr.flush()
+        sys.exit(1)
+
+    workflow_run(workflow_id, token, url, input_params, number, seed, version)
 
 if __name__ == '__main__':
     main()

@@ -138,7 +138,7 @@ def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=Fal
 
     return True, run_lists
 
-def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3"):
+def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3", timeout=(5.0, 300.0)):
     '''
     ラン詳細の取得
     @param token (string) APIトークン
@@ -150,7 +150,7 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3
     '''
 
     weburl = "https://%s:50443/workflow-api/%s/runs?workflow_id=%s"%(url, version, workflow_id)
-    res = mintWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
+    res = mintWorkflowAPI(token, weburl, timeout=timeout)
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         if res.status_code is None:
             print("%s - 接続がタイムアウトしました(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))
@@ -196,7 +196,7 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3
         run_info["description"] = description
         # ラン詳細取得
         weburl = "https://%s:50443/workflow-api/%s/runs/%s"%(url, version, run_info["run_id"].split("/")[-1])
-        run_res = nodeREDWorkflowAPI(token, weburl, timeout=(5.0, 300.0))
+        run_res = nodeREDWorkflowAPI(token, weburl, timeout=timeout)
         if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
             if res.status_code is None:
                 print("%s - 接続がタイムアウトしました(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.text))

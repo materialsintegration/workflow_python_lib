@@ -69,10 +69,12 @@ def main():
         hostid = "192.168.1.242"
     elif url == "dev-u-tokyo.mintsys.jp":
         hostid = "192.168.1.142"
+    elif url == "nims-dev.mintsys.jp":
+        hostid = "192.168.1.231"
 
     for item in items:
         workflow_id = item["workflow_id"].split("/")[-1]
-        retval, ret = get_runlist_fromDB(siteid, workflow_id, hostid)
+        retval, ret = get_runlist_fromDB(siteid, workflow_id)
         if len(ret) == 0:
             print("%s はランがありませんでした。"%workflow_id)
         else:

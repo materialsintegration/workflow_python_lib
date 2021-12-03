@@ -110,7 +110,9 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
                 outfile = open(filename, "w")
                 outfile.write("stdout contents of tool name %s --------------------\n"%tool_name)
                 #sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
-                outfile.write("%s\n"%res.text)
+                for item in res.json().split("\n"):
+                    outfile.write("%s\n"%item)
+                #outfile.write("%s\n"%res.text)
                 #outfile.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
                 outfile.close()
                 sys.stderr.write("writing stdout info for tool(%s) to %s\n"%(tool_name, filename))
