@@ -41,6 +41,7 @@ def main():
     api_version = "v3"
     start_from = None
     hilite_threashold = None
+    only_directory = False
 
     for items in sys.argv:
         items = items.split(":")
@@ -63,6 +64,8 @@ def main():
             hilite_threashold = items[1]
         elif items[0] == "date_from":           # 開始日がこの日付以降のみを対象とする。
             start_from = items[1]
+        elif items[0] == "only_directory":      # ディレクトリパスのみ表示して終わり
+            only_directory = True
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -105,7 +108,7 @@ def main():
         os.stderr.flush()
         sys.exit(1)
 
-    if url == "nims.mintsys.jp":
+    if url == "nims.mintsys.jp" or url == "nims-dev.mintsys.jp":
         hostid = "192.168.1.231"
         api_version = "v4"
     elif url == "u-tokyo.mintsys.jp":
@@ -152,14 +155,19 @@ def main():
                 uuid = run_id["uuid"]
             print("  ランは削除されています。UUID='%s'"%uuid)
         else:
-            rundetail = get_rundetail(token, url, siteid, run_id["run_id"], version=api_version)
-            if rundetail is False:
-                print("  ランの開始日時：%s"%run_id["start"])
-                continue
-
-            uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
+            if only_directory is False:
+                rundetail = get_rundetail(token, url, siteid, run_id["run_id"], version=api_version)
+                if rundetail is False:
+                    print("  ランの開始日時：%s"%run_id["start"])
+                    continue
+                uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
+            uuid = run_id["uuid"].decode()
         #dirname = os.path.join("/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32]), "W000020000000197/W000020000000197_ＮｉーＡｌのγ’析出組織形成（等温時効）_02")
         dirname = "/home/misystem/assets/workflow/%s/calculation/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s/%s"%(siteid, uuid[0:2], uuid[2:4], uuid[4:6], uuid[6:8], uuid[8:10], uuid[10:12], uuid[12:14], uuid[14:16], uuid[16:18], uuid[18:20], uuid[20:22], uuid[22:24], uuid[24:26], uuid[26:28], uuid[28:30], uuid[30:32])
+        if only_directory is True:
+            sys.stderr.write("%s - %s\n"%(run_id["run_id"], dirname))
+            sys.stderr.flush()
+            continue
         os.chdir(dirname)
         if extra_cmd is None:
             ret = subprocess.check_output(cmd.split())
