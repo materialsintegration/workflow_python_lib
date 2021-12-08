@@ -163,12 +163,16 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                 else:
                     sys.stderr.write("run_id(%s) のworkflow_inputsのうち%sのポートのURLが不完全です\n"%(runid, item["parameter_name"]))
                     sys.stderr.flush()
-            else:
+            else:       # API Version4以降の対応
+                # file_sizeキーが無い場合(issue #23)
                 if ("file_size" in item) is False:
                     item["file_size"] = 0
 
-            if read_uncomplete is True:
-                io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                    #==> 2021/12/08 read_uncomplete is Falseの時の対応が抜けて、正常なinputsリストが抜けていた。
+                    if read_uncomplete is True:
+                        io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                else:
+                    io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
         # ワークフロー出力ポートの処理
         workflow_outputs = url_list["workflow_outputs"]
@@ -196,12 +200,22 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
             #    else:
             #        param_name += "_" + params[i]
             #<== 2021/04/05
-            if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
-                io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
-            else:
-                sys.stderr.write("run_id(%s) のworkflow_outputsのうち%sのポートのURLが不完全です\n"%(runid, item["parameter_name"]))
-                sys.stderr.flush()
-                if read_uncomplete is True:
+            #==> 2021/12/08 v4になってfile_sizeが無い場合はサイズを０にして返す
+            if version == "v3":
+                if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
+                    io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                else:
+                    sys.stderr.write("run_id(%s) のworkflow_outputsのうち%sのポートのURLが不完全です\n"%(runid, item["parameter_name"]))
+                    sys.stderr.flush()
+            else:       # API Version4以降の対応
+                # file_sizeキーが無い場合(issue #23)
+                if ("file_size" in item) is False:
+                    item["file_size"] = 0
+
+                    # 不完全でもファイルパスを出力する対応（ただしサイズは必ず０）
+                    if read_uncomplete is True:
+                        io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                else:
                     io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
 
         # 各ツールの出力ポートの処理
@@ -232,13 +246,23 @@ def get_runiofile(token, url, siteid, runid, with_result=False, thread_num=0, ti
                 param_name = "_".join(params)
                 #<== 2021/04/08
                 #sys.stdout.write("tool (%s) output (%s) の処理中\n"%(workflow_tool["tool_name"], param_name))
-                if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
-                    if item["file_size"] != 0:
-                        io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
-                else:
-                    sys.stderr.write("run_id(%s) のtool(%s)のoutputのうち%sのポートのURLが不完全です\n"%(runid, workflow_tool["tool_name"], item["parameter_name"]))
-                    sys.stderr.flush()
-                    if read_uncomplete is True:
+                #==> 2021/12/08 v4になってfile_sizeが無い場合はサイズを０にして返す
+                if version == "v3":
+                    if ("file_size" in item) is True and item["file_path"].split("/")[-2] != "runs":
+                        if item["file_size"] != 0:
+                            io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                    else:
+                        sys.stderr.write("run_id(%s) のtool(%s)のoutputのうち%sのポートのURLが不完全です\n"%(runid, workflow_tool["tool_name"], item["parameter_name"]))
+                        sys.stderr.flush()
+                else:       # API Version4以降の対応
+                    # file_sizeキーが無い場合(issue #23)
+                    if ("file_size" in item) is False:
+                        item["file_size"] = 0
+
+                        # 不完全でもファイルパスを出力する対応（ただしサイズは必ず０）
+                        if read_uncomplete is True:
+                            io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
+                    else:
                         io_dict[runid][param_name] = [item["file_path"], item["file_size"]]
      
         loop_num += 1
