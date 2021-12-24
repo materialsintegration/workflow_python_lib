@@ -18,6 +18,7 @@
 * workflow_changest.py  - 指定されたランのステータスを実行中止(canceled)へ変更する。
 * parent_job_servei.sh  - Torqueジョブ監視スクリプト。１つ目を親のジョブIDとし、２つめ以降はそこから実行された子のジョブとして監視。親ジョブが終了（ワークフローキャンセルなど）した場合は子のジョブを削除する。
 * run_clean.py          - ワークフローIDからラン番号、実行時ディレクトリおよびそのサイズを表示する。簡易コマンドも受け付ける（不要なファイルの削除などに）
+* workflow_feedbackrun.py - フィードバックラン実行用のスクリプト
 ~~ pairgraph.py          - タブ区切りのCSVファイルからペアプロットを作成する。
   + Thermo-Calc実行スクリプト専用
   + 要matplotlib、seabornパッケージ~~
@@ -586,7 +587,7 @@ run(R000110000621001) 情報：2021-02-22 19:19:04 - ランは完了していま
 実行時ディレクトリに対して、指定したコマンドの実行が可能である。以下のように実行する。
 ```
 $ cd ~/assets/modules/workflow_python_lib
-$ python3.6 run_clean.py workflow_id:W000110000000402 misystem:nims.mintsys.jp siteid:site00011 excmd:'rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp'
+$ python3.6 run_clean.py workflow_id:W000110000000402 misystem:nims.mintsys.jp siteid:site00011 excmd:'rm W000110000000xxx/W000110000000xxx_とある計算_0?/hogehoge.dat'
 ```
 
 コマンドを指定する場合、注意点がある。
@@ -598,16 +599,59 @@ $ python3.6 run_clean.py workflow_id:W000110000000402 misystem:nims.mintsys.jp s
 run(R000110000620133) 情報：2021-01-04 21:11:31 - ランは完了しています。
   ディレクトリサイズは 4.3G .
   /home/misystem/assets/workflow/site00011/calculation/4c/40/97/d4/ed/71/47/7f/b7/5f/98/28/f3/21/39/f4
-  コマンド(rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp)実行中
+  コマンド(rm W000110000000xxx/W000110000000xxx_とある計算_0?/hogehoge.dat)実行中
 
-  CompletedProcess(args='rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp', returncode=0)
+  CompletedProcess(args='rm W000110000000xxx/W000110000000xxx_とある計算_0?/hogehoge.dat', returncode=0)
 run(R000110000620134) 情報：2021-01-04 19:50:06 - ランは完了しています。
   ディレクトリサイズは 4.3G .
   /home/misystem/assets/workflow/site00011/calculation/61/1e/66/74/a0/1a/4a/d4/a4/7e/82/33/bb/2a/51/5a
-  コマンド(rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp)実行中
+  コマンド(rm W000110000000xxx/W000110000000xxx_とある計算_0?/hogehoge.dat)実行中
 
-  CompletedProcess(args='rm W000110000000402/W000110000000402_クリープ性能計算_Huddleston追加版_0?/output_ucd.000*.inp', returncode=0)
+  CompletedProcess(args='rm W000110000000xxx/W000110000000xxx_とある計算_0?/hogehoge.dat', returncode=0)
 ```
+
+### workflow_feedbackrun.py
+フィードバックランAPIに対応したスクリプトである。
+* 特徴
+通常のworkflow_execute.pyと同じであるが、フィードバックランのAPIにしたがい、mode(start/run/stop)でフィードバックランを制御する。
+* ヘルプの表示  
+引数無で実行するとヘルプが表示される。
+```
+Usage
+   $ python /home/misystem/assets/modules/workflow_python_lib/workflow_feedbackrun.py workflow_id:Mxxxx token:yyyy misystem:URL <port-name>:<filename for port> [OPTIONS]...
+               token  : 非必須 64文字のAPIトークン。指定しなければログインから取得。
+             misystem : 必須 dev-u-tokyo.mintsys.jpのようなMIntシステムのURL
+    <port-name>:<filename for port> : ポート名とそれに対応するファイル名を必要な数だけ。
+                      : 必要なポート名はworkflow_params.pyで取得する。
+              timeout : 連続実行でない場合に、実行中のままこの時間（秒指定）を越えた場合に、キャンセルして終了する。
+          description : ランの説明に記入する文章。
+                 mode : 必須 start/run/stopのどれかを指定する。
+                      : start フィードバックラン開始。正常開始できればstdoutにIDが表示される。
+                      : run フィードバックラン１回開始。実行完了で戻ってくる。
+                      : stop フィードバックラン終了。statusで終了状態を指定する。
+          workflow_id : mode:startの時に必要 Rで始まる15桁のランID
+          feedback_id : mode:runまたはstopの時に必要な操作対象のランID
+                 conf : 構成ファイルの指定
+    OPTIONS
+        --download    : 実行終了後の出力ポートのダウンロードを行う。
+                      : デフォルトダウンロードは行わない。
+                      : mode:stop時に有効。
+          downloaddir : 実行完了後の出力ポートファイルのダウンロード場所の指定（指定はカレントディレクトリ基準）
+                        downloaddir/<RUN番号>/ポート名
+                        デフォルトは/tmp/<RUN番号>ディレクトリ
+                      : mode:stop時に有効。
+                satus : mode:stop時に指定する。complete、abend、cancelを指定する。
+                      : 無指定はcompleteとなる。
+            max_count : 起動したランが実行できる最大回数。無指定は暫定100回。
+```
+* ポート名の取得
+入力ポート名はworkflow_params.pyで取得した``` _0? ```までの名前を使用する。
+
+* 実行方法
+  + mode:startで実行する
+    - 戻り値のランIDを控えておく
+  + mode:run と feedback_idに控えておいたランIDを指定して、1回loopを実行する。
+  + max_count(無指定時は９９)以内で終了する場合は、mode:stop status:(complete/abend/cancel)で終了する。
 
 # 参考文献
 * pairgraph
