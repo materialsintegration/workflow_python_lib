@@ -103,7 +103,8 @@ def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, headers
         # ヘッダー
         headers = {'Authorization': 'Bearer ' + token,
                'Content-Type': 'application/json',
-               'Accept': 'application/json'}
+               'Accept': 'application/json',
+               'Connection': 'close'}
 
     #print("header = %s"%str(headers))
     #print("requestBody = %s"%str(invdata))
@@ -177,6 +178,7 @@ def mintWorkflowAPI(token, weburl, params=None, invdata=None, json=None, headers
             #return False, res
             #sys.exit(1)
 
+    session.close()
     return res
 
 def error_print(res):

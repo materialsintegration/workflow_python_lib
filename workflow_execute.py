@@ -188,6 +188,8 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     outmessage = ""
     while True:
         #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
+        sys.stdout.write("%s - ワークフローAPI実行開始\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+        sys.stdout.flush()
         weburl = api_url%(url, version)
         params = {"workflow_id":"%s"%workflow_id}
         res = mintWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(300.0, 300.0), error_print=False)
