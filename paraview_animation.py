@@ -200,9 +200,11 @@ def get_avs_animation(file_pattern="*_AVese_*.dat", time_temp=True, represent=No
     first_num = int(os.path.basename(files[0]).split("_")[3].split(".")[0])
     last_num = int(os.path.basename(files[-2]).split("_")[3].split(".")[0])
     vtk_count = -1
+    print("TrueTypeフォント設定中")
     font = PIL.ImageFont.truetype("/usr/share/fonts/vlgothic/VL-Gothic-Regular.ttf", 18)
     scalar_names = {}
     #for infilename in files:
+    print("対象ファイル名取得中")
     if file_num < 100:                  # 個数が100個以下なら間引き指定あっても無とする。
         amount = None
     if amount is None:                  # 間引きなし
@@ -223,6 +225,7 @@ def get_avs_animation(file_pattern="*_AVese_*.dat", time_temp=True, represent=No
     infilenames.append(filename_pattern%last_num)
     jpg_filenames = []
 
+    print("ファイル処理開始")
     for infilename in infilenames:
         if os.path.exists(infilename) is False:
             continue
