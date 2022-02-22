@@ -231,7 +231,7 @@ def get_avs_animation(file_pattern="*_AVese_*.dat", time_temp=True, represent=No
             continue
         print("processing avs file(%s)"%infilename)
     
-        reader = AVSUCDReader(vtkfilename)
+        reader = AVSUCDReader(infilename)
         points = reader.PointData
 
         view = GetActiveView()    # 出力画像のアングル等の指定の準備
