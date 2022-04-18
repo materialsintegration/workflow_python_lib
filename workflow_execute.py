@@ -112,6 +112,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     global input_ports_prev
     global output_ports_prev
     global STOP_FLAG
+    global api_url
 
     logfile = "workflow_exec.%s.log"%url
 
@@ -526,6 +527,8 @@ def wait_running_number_api(url, token, number, version="v3"):
     '''
 
     global STOP_FLAG
+    global api_rul
+
     headers = {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Accept': 'application/json'}
     session = requests.Session()
     #weburl = "https://%s:50443/workflow-api/v2/runs"%url
@@ -597,7 +600,9 @@ def main():
     config = None
     conf_file = None
     version = "v3"
+    port = "50443"
     global STOP_FLAG
+    global api_url
 
     for i in range(1, len(sys.argv)):
         #items = items.split(":")
@@ -638,6 +643,8 @@ def main():
             conf_file = items[1]
         elif items[0] == "version":             # APIバージョン指定
             version = items[1]
+        elif items[0] == "port":                # 特別ポート番号
+            port = items[1]
         else:
             if len(items) != 2:
                 continue
@@ -666,6 +673,8 @@ def main():
                 timeout = int(config["timeout"])
             elif item == "siteid":
                 siteid = config["siteid"]
+            elif item == "version":
+                version = config["version"]
             elif item == "description":
                 description = config["description"]
             elif item == "downloaddir":
@@ -710,6 +719,7 @@ def main():
     else:
         random.seed(seed)
 
+    api_url ="https://%s:" + "%s"%port + "/workflow-api/%s/runs"
     signal.signal(signal.SIGINT, signal_handler)
 
     #for i in range(int(number)):

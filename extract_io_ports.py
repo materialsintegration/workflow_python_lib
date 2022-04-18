@@ -89,9 +89,14 @@ for item in candidate_modules:
         rev = v3
 
 object_name = target_module.find(".//predictionModuleSchema:objectPath", {"predictionModuleSchema": "http://www.example.com/predictionModuleSchema"}).text
-object_import = object_name.split("/")[-1].split(".")[0]
-object_import += "_import.py"
-object_name = object_name.split("/")[-1]
+object_name = object_name.replace("-", "_")
+# objectPathの実行スクリプト名
+object_exec_name = object_name.split("/")[-1]
+object_name = object_name.split("/")[-1].split(".")[0]
+# パラメータ設定ファイル名
+object_import = object_name + "_import.py"
+object_file_name = object_name.split("/")[-1]
+object_package_name = object_name + "_import"
 p_id = target_module.find(".//dc:identifier", {'dc': 'http://purl.org/dc/elements/1.1/'})
 version = target_module.find(".//predictionModuleSchema:version", {"predictionModuleSchema": "http://www.example.com/predictionModuleSchema"})
 module_name = target_module.find(".//dc:title", {'dc': 'http://purl.org/dc/elements/1.1/'}).text
@@ -138,7 +143,7 @@ if check_only is True:
 
 # ファイルの出力
 outfile = open(object_import, "w")
-outfile.write("# %s用 ポート変換テーブル\n"%object_name)
+outfile.write("# %s用 ポート変換テーブル\n"%object_file_name)
 outfile.write("# objectPathの実行ファイルの先頭でimportして使う\n")
 outfile.write("# このファイルは自動生成されたのち、不足分を追加して使用する。\n")
 outfile.write("# create at %s\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -196,3 +201,39 @@ for item in items:
     count += 1
 outfile.write("}\n")
 outfile.close()
+
+# 実行スクリプト雛形作成
+outfile = open(object_exec_name, "w")
+outfile.write("#!/usr/bin/python3.6\n")
+outfile.write("# -*- coding: utf-8 -*-\n")
+outfile.write("# Copyright (c) The University of Tokyo and\n")
+outfile.write("# National Institute for Materials Science (NIMS). All rights reserved.\n")
+outfile.write("# This document may not be reproduced or transmitted in any form,\n")
+outfile.write("# in whole or in part, without the express written permission of\n")
+outfile.write("# the copyright owners.\n")
+outfile.write("\n")
+outfile.write("'''\n")
+outfile.write("ここにスクリプトの概要を記述する。\n")
+outfile.write("'''\n")
+outfile.write("\n")
+outfile.write("import os, sys\n")
+outfile.write('sys.path.append("/home/misystem/assets/modules/workflow_python_lib")\n')
+outfile.write("from workflow_lib import *\n")
+outfile.write("\n")
+outfile.write("# ポート情報設定ファイル取り込み\n")
+outfile.write("from %s import *\n"%object_package_name)
+outfile.write("\n")
+outfile.write("# モジュール初期化\n")
+outfile.write("wf_tool = MIApiCommandClass()\n")
+outfile.write("wf_tool.setInportNames(inputports)\n")
+outfile.write("wf_tool.setOutportNames(outputports)\n")
+outfile.write("wf_tool.setRealName(in_realnames, out_realnames)\n")
+outfile.write("#入力、出力の実ファイルとパラメータ名の自動変換をしない場合は、以下のフラグをそれぞれFalseにする。\n")
+outfile.write("#どちらもデフォルトFalseなので未指定でも可。\n")
+outfile.write("wf_tool.Initialize(translate_input=True, translate_output=True)\n")
+outfile.write("\n")
+outfile.write('cmd = "ここに実行プログラムを設定する"\n')
+outfile.write("\n")
+outfile.write("wf_tool.ExecSolver(cmd)\n")
+outfile.write("\n")
+outfile.write("sys.exit(0)\n")

@@ -20,6 +20,8 @@ sys.path.append("~/assets/modules/workflow_python/lib")
 from common_lib import *
 from openam_operator import openam_operator
 
+CHARSET_DEF = 'utf-8'
+
 def status_out(message=""):
     '''
     状態メッセージをステータス専用ファイルに書き込む。
@@ -33,7 +35,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def extract_workflow_params(workflow_id, token, url, version="v3"):
+def extract_workflow_params(workflow_id, token, url, port="50443", version="v3"):
     '''
     ワークフロー詳細情報を取得
     @param workflow_id (string) ワークフローID。e.g. W000020000000197
@@ -43,7 +45,7 @@ def extract_workflow_params(workflow_id, token, url, version="v3"):
 
     retry_count = 0
     while True:
-        weburl = "https://%s:50443/workflow-api/%s/workflows/%s"%(url, version, workflow_id)
+        weburl = "https://%s:%s/workflow-api/%s/workflows/%s"%(url, port, version, workflow_id)
         res = mintWorkflowAPI(token, weburl)
 
         retry_count += 1
@@ -122,6 +124,8 @@ def main():
     seed = None
     number = "0"
     version = "v3"
+    config = None
+    conf_file = None
 
     for items in sys.argv:
         items = items.split(":")
@@ -140,15 +144,47 @@ def main():
             seed = items[1]
         elif items[0] == "version":             # APIバージョン指定
             version = items[1]
+        elif items[0] == "conf":                # 構成ファイル
+            conf_file = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
-    
+
+    if conf_file is not None:
+        sys.stdout.write("パラメータを構成ファイル(%s)から読み込みます。\n"%conf_file)
+        infile = open(conf_file, "r", encoding=CHARSET_DEF)
+        try:
+            config = json.load(infile)
+        except json.decoder.JSONDecodeError as e:
+            sys.stderr.write("%sを読み込み中の例外キャッチ\n"%conf_file)
+            sys.stderr.write("%s\n"%e)
+            sys.exit(1)
+        infile.close()
+
+    if config is not None:
+        for item in list(config.keys()):
+            if item == "workflow_id":
+                workflow_id = config["workflow_id"]
+            elif item == "token":
+                token = config["token"]
+            elif item == "misystem":
+                url = config["misystem"]
+            elif item == "timeout":
+                timeout = int(config["timeout"])
+            elif item == "siteid":
+                siteid = config["siteid"]
+            elif item == "version":
+                version = config["version"]
+            else:
+                sys.stderr.write("未知のキー(%s)です。"%item)
+                sys.stderr.flush()
+
     if workflow_id is None or url is None:
         print("Usage")
         print("   $ python %s workflow_id:Mxxxx token:yyyy misystem:URL"%(sys.argv[0]))
         print("          workflow_id : Mで始まる16桁のワークフローID")
         print("               token  : 64文字のAPIトークン")
         print("             misystem : dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("               conf   : 構成ファイルの指定")
         sys.exit(1)
 
     # APIトークンの取得
