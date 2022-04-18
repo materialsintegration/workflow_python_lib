@@ -197,8 +197,8 @@ def main():
         uid, token = openam_operator.miLogin(url, "ログイン情報入力")
 
     if token is None:
-        os.stderr.write("ログインに失敗しました。\n")
-        os.stderr.flush()
+        sys.stderr.write("ログインに失敗しました。\n")
+        sys.stderr.flush()
         sys.exit(1)
 
     miwf, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, port, version)
