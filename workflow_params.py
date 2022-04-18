@@ -126,6 +126,7 @@ def main():
     version = "v3"
     config = None
     conf_file = None
+    port = "50443"
 
     for items in sys.argv:
         items = items.split(":")
@@ -146,6 +147,8 @@ def main():
             version = items[1]
         elif items[0] == "conf":                # 構成ファイル
             conf_file = items[1]
+        elif items[0] == "port":
+            port = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -174,6 +177,8 @@ def main():
                 siteid = config["siteid"]
             elif item == "version":
                 version = config["version"]
+            elif item == "port":
+                port = config["port"]
             else:
                 sys.stderr.write("未知のキー(%s)です。"%item)
                 sys.stderr.flush()
@@ -196,7 +201,7 @@ def main():
         os.stderr.flush()
         sys.exit(1)
 
-    miwf, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, version)
+    miwf, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, port, version)
 
     print("input parameters")
     for item in input_ports:
