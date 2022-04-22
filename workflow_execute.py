@@ -92,7 +92,7 @@ def workflow_log(messages, logfile):
     if os.path.exists(loglock_file) is True:    # 別プロセスが絶妙なタイミングでここを実行したときの対策。
         os.remove(loglock_file)
 
-def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None, nodownload=True, exec_retry_count=5, version="v3"):
+def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1", timeout=None, seed=None, siteid="site00002", description=None, downloaddir=None, nodownload=True, exec_retry_count=5, version="v3"):
     '''
     ワークフロー実行
     @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
@@ -118,7 +118,7 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
 
     # 前回と同じworkflow_idなら詳細を取得しない。
     if prev_workflow_id != workflow_id:
-        miwf_contents, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, version)
+        miwf_contents, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, port, version)
         if miwf_contents is False:
             sys.stderr.write("%s - ワークフローの情報を取得できませんでした。終了します。。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
             sys.stderr.flush()
@@ -442,18 +442,31 @@ def workflow_run(workflow_id, token, url, input_params, number="-1", timeout=Non
     headers_for_assetapi = {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/octet-stream', 'Accept': 'application/octet-stream'}
     for tool in wf_tools:
         tool_outputs = tool["tool_outputs"]
+        tool_name = "%s_%s"%(workflow_id, tool["tool_name"].split("_")[0])
+        if downloaddir is None:
+            if os.path.exists("/tmp/%s/%s"%(runid, tool_name)) is False:
+                os.mkdir("/tmp/%s/%s"%(runid, tool_name))
+        else:
+            if downloaddir.startswith("/tmp") is False:         # tempfile指定などが使われた？
+                if os.path.exists("./%s/%s/%s"%(downloaddir, runid, tool_name)) is False:
+                    os.mkdir("./%s/%s/%s"%(downloaddir, runid, tool_name))
+            else:
+                if os.path.exists("%s/%s/%s"%(downloaddir, runid, tool_name)) is False:
+                    os.mkdir("%s/%s/%s"%(downloaddir, runid, tool_name))
         for item in tool_outputs:
             if downloaddir is None:
-                filename = "/tmp/%s/%s"%(runid, item["parameter_name"])
+                filename = "/tmp/%s/%s/%s"%(runid, tool_name, item["parameter_name"])
             else:
                 if downloaddir.startswith("/tmp") is False:         # tempfile指定などが使われた？
-                    filename = "./%s/%s/%s"%(downloaddir, runid, item["parameter_name"])
+                    filename = "./%s/%s/%s/%s"%(downloaddir, runid, tool_name, item["parameter_name"])
                 else:
-                    filename = "%s/%s/%s"%(downloaddir, runid, item["parameter_name"])
+                    filename = "%s/%s/%s/%s"%(downloaddir, runid, tool_name, item["parameter_name"])
             outputfilenames[item["parameter_name"]] = filename
             #print("outputfile:%s"%item["file_path"])
             #sys.stderr.write("file size = %s\n"%item["file_size"])
             weburl = item["file_path"]
+            if port != "50443":
+                weburl = weburl.replace("50443", port)
             sys.stdout.write("%s - %s 取得中...\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item["parameter_name"]))
             sys.stdout.flush()
             # sile_sizeが無いポートの対処
@@ -720,6 +733,7 @@ def main():
         random.seed(seed)
 
     api_url ="https://%s:" + "%s"%port + "/workflow-api/%s/runs"
+    print(api_url)
     signal.signal(signal.SIGINT, signal_handler)
 
     #for i in range(int(number)):
@@ -748,7 +762,7 @@ def main():
             else:
                 wait_running_number(url, token, number)
             print("\n------ %06s -------"%i)
-        ret = workflow_run(workflow_id, token, url, input_params, number, timeout, seed, siteid, description, downloaddir=downloaddir, nodownload=nodownload, version=version)
+        ret = workflow_run(workflow_id, token, url, input_params, port, number, timeout, seed, siteid, description, downloaddir=downloaddir, nodownload=nodownload, version=version)
         time.sleep(1.0)
         if number == "-1":
             break
