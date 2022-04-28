@@ -70,12 +70,20 @@ def get_rundetail(token, url, siteid, runid, with_result=False, tool_names=None,
     res = mintWorkflowAPI(token, weburl)
     if res.status_code != 200 and res.status_code != 201 and res.status_code != 204:
         sys.stderr.write("%s - 異常な終了コードを受信しました(%d)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.status_code))
+        sys.stderr.flush()
         if res.status_code == 404 and res.json()["errors"][0]["code"] == "0050":
             sys.stderr.write("%s - ランは削除されています。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")) 
+            sys.stderr.flush()
             return False
-        time.sleep(120)
+        #time.sleep(120)
         sys.exit(1)
-    retval = res.json()
+    try:
+        retval = res.json()
+    except:
+        sys.stderr.write("%s - 異常なレスポンスを受信しました。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+        sys.stderr.write("   %s\n"%res.text)
+        sys.stderr.flush()
+        sys.exit(1)
     if retval["status"] == "running" or retval["status"] == "waiting" or retval["status"] == "paused":
         pass
     elif retval["status"] == "abend" or retval["status"] == "canceled":
