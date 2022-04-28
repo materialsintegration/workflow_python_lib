@@ -335,7 +335,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
                 message += " ランがキャンセルされました。実行を終了します。(%s)"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
                 #outfile.write(" ランがキャンセルされました。実行を終了します。(%s)\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
 
-            get_rundetail(token, url, siteid, runid, False, tool_names, False, version=version)
+            get_rundetail(token, url, siteid, runid, port, False, tool_names, False, version=version)
             #outfile.close()
             workflow_log(message, logfile)
             sys.exit(1)
@@ -350,7 +350,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
                 #outfile.write(" ランは正常終了しませんでした。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
                 #outfile.close()
                 sys.exit(1)
-                get_rundetail(token, url, siteid, runid, False, tool_names, False, version=version)
+                get_rundetail(token, url, siteid, runid, port, False, tool_names, False, version=version)
             break
     
         time.sleep(5)      # 問い合わせ間隔30秒
@@ -398,7 +398,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
             if retry_count == 5:
                 sys.stderr.write("%s - 結果取得失敗。終了します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.flush()
-                get_rundetail(token, url, siteid, runid, False, tool_names, False, version=version)
+                get_rundetail(token, url, siteid, runid, port, False, tool_names, False, version=version)
                 sys.exit(1)
             else:
                 sys.stderr.write("%s - 結果取得失敗。５分後に再取得を試みます。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -427,7 +427,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
             if retry_count == 5:
                 sys.stderr.write('tool["tool_outputs"] が空？取得できませんでした。終了します。\n')
                 sys.stderr.flush()
-                get_rundetail(token, url, siteid, runid, False, tool_names, False, version=version)
+                get_rundetail(token, url, siteid, runid, port, False, tool_names, False, version=version)
                 sys.exit(1)
             else:
                 sys.stderr.write('モジュール名(%s)のtool["tool_outputs"] が空？５秒後に再取得します。\n'%tool["tool_name"])
