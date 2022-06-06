@@ -41,7 +41,7 @@ siteids = {"dev-u-tokyo.mintsys.jp":"site00002",
 RUN_STATUS = {"canceled":"キャンセル", "failure":"起動失敗", "running":"実行中",
               "waiting":"待機中", "paused":"一時停止", "abend":"異常終了"}
 
-api_url ="https://%s:50443/workflow-api/%s/runs"
+api_url ="https://%s:%s/workflow-api/%s/runs"
 CHARSET_DEF = 'utf-8'
 
 def signal_handler(signum, frame):
@@ -125,12 +125,13 @@ def paramsToJsonParams(input_params, input_ports):
 
     return workflow_params
 
-def workflow_feedbackstart(workflow_id, token, url, input_params, max_count, timeout=None, seed=None, description=None, exec_retry_count=5, version="v4"):
+def workflow_feedbackstart(workflow_id, token, url, port, input_params, max_count, timeout=None, seed=None, description=None, exec_retry_count=5, version="v4"):
     '''
     フィードバックラン実行
     @param workflow_id (string) Wで始まる16桁のワークフローID。e.g. W000020000000197
     @param token (string) APIトークン
     @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param port (string) ポート番号。
     @param input_params (list) <ポート名>:<ファイル名>のリスト。
     @param max_count (string) 起動時に指定する最大回数。
     @param timeout (int) 実行中のままこの秒数が過ぎた場合はキャンセルを実行して終了。データ取得はしない。
@@ -191,7 +192,7 @@ def workflow_feedbackstart(workflow_id, token, url, input_params, max_count, tim
     #outfile = open(logfile, "a")
     outmessage = ""
     while True:
-        weburl = "https://%s:50443/workflow-api/%s/feedbackruns"%(url, version)
+        weburl = "https://%s:%s/workflow-api/%s/feedbackruns"%(url, port, version)
         #weburl = api_url%(url, version)
         params = {"workflow_id":"%s"%workflow_id}
         sys.stdout.write("%s - フィードバックラン開始します。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -247,19 +248,20 @@ def workflow_feedbackstart(workflow_id, token, url, input_params, max_count, tim
             sys.stdout.flush()
             sys.exit(0)
 
-def workflow_feedbackrun(feedbackrun_id, token, url, input_params=None, timeout=(2.0, 300.0), version="v4", downloaddir="/tmp"):
+def workflow_feedbackrun(feedbackrun_id, token, url, port, input_params=None, timeout=(2.0, 300.0), version="v4", downloaddir="/tmp"):
     '''
     フィードバックラン１回実行
     @param feedbackrun_id (string)
     @param token (string) APIトークン
     @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param port (string) ポート番号。
     @param input_params (list) <ポート名>:<ファイル名>のリスト。
     @param timeout (int) 実行中のままこの秒数が過ぎた場合はキャンセルを実行して終了。データ取得はしない。
     @param version (string)
     @param downloaddir (string)
     '''
     # フィードバックラン１回実行後、ラン終了待機
-    weburl = "https://%s:50443/workflow-api/%s/feedbackruns/%s/loops"%(url, version, feedbackrun_id)
+    weburl = "https://%s:%s/workflow-api/%s/feedbackruns/%s/loops"%(url, port, version, feedbackrun_id)
 
     # input_ports辞書の読み込み
     if os.path.exists("input_ports.json") is True:
@@ -365,12 +367,13 @@ def workflow_feedbackrun(feedbackrun_id, token, url, input_params=None, timeout=
         sys.stdout.flush()
     sys.exit(0)
 
-def workflow_feedbackstop(feedbackrun_id, token, url, timeout, stop_status="completed", version="v4", downloaddir=None, nodownload=True):
+def workflow_feedbackstop(feedbackrun_id, token, url, port, timeout, stop_status="completed", version="v4", downloaddir=None, nodownload=True):
     '''
     フィードバックランの停止
     @param feedbackrun_id (string)
     @param token (string) APIトークン
     @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
+    @param port (string) ポート番号。
     @param timeout (float, float)
     @param stop_status (string)
     @param version (string)
@@ -380,10 +383,10 @@ def workflow_feedbackstop(feedbackrun_id, token, url, timeout, stop_status="comp
 
     # フィードバック停止
     if stop_status == "cancel" or stop_status == "canceled":
-        weburl = "https://%s:50443/workflow-api/%s/runs/%s"%(url, version, feedbackrun_id)
+        weburl = "https://%s:%s/workflow-api/%s/runs/%s"%(url, port, version, feedbackrun_id)
         stop_status = "canceled"
     else:
-        weburl = "https://%s:50443/workflow-api/%s/feedbackruns/%s"%(url, version, feedbackrun_id)
+        weburl = "https://%s:%s/workflow-api/%s/feedbackruns/%s"%(url, port, version, feedbackrun_id)
     # Runパラメータの構築
     run_params = {"status":"%s"%stop_status}
     params = {}
@@ -421,6 +424,7 @@ def main():
     stop_status = "completed"
     print_help = True
     max_count = "99"
+    port = "50443"
     global STOP_FLAG
 
     for i in range(1, len(sys.argv)):
@@ -468,6 +472,8 @@ def main():
             stop_status = items[1]
         elif items[0] == "max_count":           # 最大回数
             max_count = items[1]
+        elif items[0] == "port":                # ポート番号
+            port = items[1]
         else:
             if len(items) != 2:
                 continue
@@ -500,6 +506,8 @@ def main():
                 description = config["description"]
             elif item == "downloaddir":
                 downloaddir = config["downloaddir"]
+            elif item == "port":
+                port = config["port"]
             else:
                 sys.stderr.write("未知のキー(%s)です。"%item)
                 sys.stderr.flush()
@@ -556,11 +564,11 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
 
     if fmode == "start":
-        workflow_feedbackstart(workflow_id, token, url, input_params, max_count, timeout, siteid, description, version=version)
+        workflow_feedbackstart(workflow_id, token, url, port, input_params, max_count, timeout, siteid, description, version=version)
     elif fmode == "run":
-        workflow_feedbackrun(feedbackrun_id, token, url, input_params, timeout, version=version, downloaddir=downloaddir)
+        workflow_feedbackrun(feedbackrun_id, token, url, port, input_params, timeout, version=version, downloaddir=downloaddir)
     elif fmode == "stop":
-        workflow_feedbackstop(feedbackrun_id, token, url, timeout, stop_status, version=version)
+        workflow_feedbackstop(feedbackrun_id, token, url, port, timeout, stop_status, version=version)
     else:
         sys.stderr.write("不明なモード(%s)です。"%fmode)
         sys.stderr.flush()

@@ -692,6 +692,8 @@ def main():
                 description = config["description"]
             elif item == "downloaddir":
                 downloaddir = config["downloaddir"]
+            elif item == "port":
+                port = config["port"]
             else:
                 sys.stderr.write("未知のキー(%s)です。"%item)
                 sys.stderr.flush()
