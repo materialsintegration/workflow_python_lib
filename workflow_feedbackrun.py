@@ -331,7 +331,7 @@ def workflow_feedbackrun(feedbackrun_id, token, url, port, input_params=None, ti
                 filename = "%s/%s/%s"%(downloaddir, feedbackrun_id, item["output_name"])
         #outputfilenames[item["output_name"]] = filename
         weburl = item["output_data_value"]
-        if port != "50442":
+        if port != "50443":
             weburl = weburl.replace(":50443", ":%s"%port)
         sys.stdout.write("%s - %s 取得中...\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item["output_name"]))
         sys.stdout.flush()
