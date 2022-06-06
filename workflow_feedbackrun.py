@@ -148,7 +148,7 @@ def workflow_feedbackstart(workflow_id, token, url, port, input_params, max_coun
     logfile = "workflow_exec.%s.log"%url
 
     # パラメータ構築用にワークフロー詳細情報を取得する。
-    miwf_contents, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, version)
+    miwf_contents, input_ports, output_ports = extract_workflow_params(workflow_id, token, url, port, version)
     if miwf_contents is False:
         sys.stderr.write("%s - ワークフローの情報を取得できませんでした。終了します。。(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), workflow_id))
         sys.stderr.flush()
