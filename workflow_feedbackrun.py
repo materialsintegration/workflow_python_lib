@@ -510,6 +510,8 @@ def main():
                 downloaddir = config["downloaddir"]
             elif item == "port":
                 port = config["port"]
+            elif item == "version":
+                version = config["version"]
             else:
                 sys.stderr.write("未知のキー(%s)です。"%item)
                 sys.stderr.flush()
