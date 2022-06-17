@@ -215,7 +215,8 @@ def main():
     url = None
     debug = False
     conf_file = None
-    version = "v3"
+    version = "v4"
+    port = "50443"
     global STOP_FLAG
 
     for items in sys.argv:
@@ -239,6 +240,8 @@ def main():
             conf_file = items[1]
         elif items[0] == "version":             # APIバージョン
             version = items[1]
+        elif items[0] == "port":                # ポート番号
+            port = items[1]
         else:
             input_params[items[0]] = items[1]   # 与えるパラメータ
 
@@ -269,6 +272,10 @@ def main():
                 description = config["description"]
             elif item == "downloaddir":
                 downloaddir = config["downloaddir"]
+            elif item == "version":
+                version = config["version"]
+            elif item == "port":
+                port = config["port"]
             else:
                 sys.stderr.write("未知のキー(%s)です。"%item)
                 sys.stderr.flush()
@@ -282,7 +289,7 @@ def main():
         sys.exit(1)
 
     tool_names = []
-    get_rundetail(token, url, siteid, run_id, result, tool_names, debug, version)
+    get_rundetail(token, url, siteid, port, run_id, result, tool_names, debug, version)
 
 if __name__ == '__main__':
     main()
