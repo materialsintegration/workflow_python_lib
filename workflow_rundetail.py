@@ -289,7 +289,7 @@ def main():
         sys.exit(1)
 
     tool_names = []
-    get_rundetail(token, url, siteid, port, run_id, result, tool_names, debug, version)
+    get_rundetail(token, url, siteid, run_id, port, result, tool_names, debug, version)
 
 if __name__ == '__main__':
     main()
