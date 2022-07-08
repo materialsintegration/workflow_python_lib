@@ -120,8 +120,11 @@ def get_rundetail(token, url, siteid, runid, port="50443", with_result=False, to
                 outfile = open(filename, "w")
                 outfile.write("stdout contents of tool name %s --------------------\n"%tool_name)
                 #sys.stderr.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
-                for item in res.json().split("\n"):
-                    outfile.write("%s\n"%item)
+                try:
+                    for item in res.json().split("\n"):
+                        outfile.write("%s\n"%item)
+                except:
+                    outfile.write("%s\n"%res.text)
                 #outfile.write("%s\n"%res.text)
                 #outfile.write("%s\n"%json.dumps(res.json(), indent=2, ensure_ascii=False))
                 outfile.close()
