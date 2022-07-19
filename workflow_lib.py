@@ -530,11 +530,12 @@ class MIApiCommandClass(object):
 
         return new_list
  
-    def copyLastTimeStampfile(self, key, newfile):
+    def copyLastTimeStampfile(self, key, newfile, symlink=True):
         '''
         keyで取得できる（ワイルドカードなど）ファイルで最後に作成されたファイルをnewfile名にコピーする
         @param key(string)
         @param newfile(string)
+        @param symlin(bool)     True:シンボリックリンクに作る。False:copyを作る。
         @retval なし
         '''
 
@@ -542,5 +543,8 @@ class MIApiCommandClass(object):
         #oldfile = files[-1]
         oldfile = file_sort[-1]
         print("%s copy from the last created file(%s) to the newfile name(%s)"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), oldfile ,newfile), flush=True)
-        shutil.copyfile(oldfile, newfile)
+        if symlink is False:
+            shutil.copyfile(oldfile, newfile)
+        else:
+            os.symlink(oldfile, newfile)
 
