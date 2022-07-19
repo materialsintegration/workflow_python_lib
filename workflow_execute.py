@@ -442,7 +442,8 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
     headers_for_assetapi = {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/octet-stream', 'Accept': 'application/octet-stream'}
     for tool in wf_tools:
         tool_outputs = tool["tool_outputs"]
-        tool_name = "%s_%s"%(workflow_id, tool["tool_name"].split("_")[0])
+        #tool_name = "%s_%s"%(workflow_id, tool["tool_name"].split("_")[0])
+        tool_name = "%s_%s"%(workflow_id, "_".join(tool["tool_name"].split("_")[0:-1]))
         if downloaddir is None:
             if os.path.exists("/tmp/%s/%s"%(runid, tool_name)) is False:
                 os.mkdir("/tmp/%s/%s"%(runid, tool_name))
@@ -464,12 +465,20 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
             outputfilenames[item["parameter_name"]] = filename
             #print("outputfile:%s"%item["file_path"])
             #sys.stderr.write("file size = %s\n"%item["file_size"])
+            # file_pathが無いポートの対処(2022/07/19追加)
+            if ("file_path" in item) is False:
+                sys.stderr.write("%s - ファイルパスが取得できないので、ファイルを取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+                sys.stderr.write("URL は %s\n"%weburl)
+                sys.stderr.flush()
+                if len(tool_outputs) == 1:
+                    get_file = True
+                continue
             weburl = item["file_path"]
             if port != "50443":
                 weburl = weburl.replace("50443", port)
             sys.stdout.write("%s - %s 取得中...\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item["parameter_name"]))
             sys.stdout.flush()
-            # sile_sizeが無いポートの対処
+            # file_sizeが無いポートの対処
             if ("file_size" in item) is False:
                 sys.stderr.write("%s - ファイルサイズが取得できないので、ファイルを取得しません。\n"%datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
                 sys.stderr.write("URL は %s\n"%weburl)
