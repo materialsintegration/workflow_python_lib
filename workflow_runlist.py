@@ -172,8 +172,12 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3
             else:
                 description = ""
             run_info = {"run_id":item["run_id"].split("/")[-1], "status":item["status"], "description":description, "start":getJstDatetime(item["creation_time"]), "workflow_name":item["workflow_name"], "deleted":"0"}
+            run_info["creator_name"] = item["creator_name"]
+            run_info["creator_id"] = item["creator_id"]
             if ("completion_time" in item) is True:
                 run_info["completion"] = getJstDatetime(item["completion_time"])
+            else:
+                run_nfoe["completion"] = "not yet"
             run_lists.append(run_info)
         return True, run_lists
 
