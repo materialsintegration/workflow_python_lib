@@ -177,7 +177,7 @@ def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3
             if ("completion_time" in item) is True:
                 run_info["completion"] = getJstDatetime(item["completion_time"])
             else:
-                run_nfoe["completion"] = "not yet"
+                run_info["completion"] = "not yet"
             run_lists.append(run_info)
         return True, run_lists
 
