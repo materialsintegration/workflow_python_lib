@@ -408,7 +408,11 @@ class MIApiCommandClass(object):
         print('%s solver execute log (%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), SOLVER_LOGFILE), flush=True)
         #args = " ".join(sys.argv)
         #print('%s args : %s'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), args))
-        self.solver_logfile = open(SOLVER_LOGFILE, "a")
+        # 20221027 サテライトMInt用にファイルが作成できない場合、出力をしないために、Noneのままにする。
+        try:
+            self.solver_logfile = open(SOLVER_LOGFILE, "a")
+        except:
+            self.solver_logfile = None
 
     def ExecSolver(self, cmd=None, not_errors=None, do_postprocess=True, stdout=sys.stdout, stderr=sys.stderr):
         '''
