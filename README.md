@@ -23,6 +23,7 @@
   + Thermo-Calc実行スクリプト専用
   + 要matplotlib、seabornパッケージ~~
 * workflow_create.py    - ワークフローを登録する。
+* db_operator.py        - MIntシステムのDBを一括で変更する。
 
 ## 特記事項
 * 対応するpythonのバージョンは3.6以上を想定している。2.6または2.7でも動作可能かもしれないが、保証はしない。
@@ -652,6 +653,48 @@ Usage
     - 戻り値のランIDを控えておく
   + mode:run と feedback_idに控えておいたランIDを指定して、1回loopを実行する。
   + max_count(無指定時は９９)以内で終了する場合は、mode:stop status:(complete/abend/cancel)で終了する。
+
+### db_operator.py
+MIntシステムのDBをCSVファイルの書かれたDB、カラム名、変更する値、where句に従って変更する。
+* 特徴
+CSVファイルに記述されたカラムの値を一括で変換する。
+* ヘルプの表示
+パラメータ無しで実行するとヘルプが表示される。
+```
+DB一括変更スクリプト
+
+Usage:
+        $ python3.6 %s <mode> <hostid> <password> <db name> <table> [<csv_name>]
+
+        mode       : change->変更、dryrun->テスト、view->取得と表示（標準出力）
+        hostid     : 対象DBのホストID（IPアドレス）
+        password   : 対象DBへのログイン方法
+        db name    : 対象DBの名前
+        target     : 変更対象のテーブル名
+        csv_name   : パラメータを記述したCSVファイルの名前
+                   : modeがchangeの時は定義一覧のCSV化したファイル
+                   : modeがviewの時は確認用IDとバージョンのリストファイル
+        mode が dryrunの時はmysqlのコマンドを表示するのみ
+```
+* csvのフォーマット
+  + change/dryrun用
+  ```
+  update_column,update_value,where_column
+  pbs_node_group,calc-node,prediction_module_id=119040000056:version=1.0.0
+  ```
+    - update_column : 変更対象のカラム名
+    - update_value  : 変更値
+    - where_column  : where句で絞りたいカラムと値を```:```で複数設定する。
+  + view用
+  ```
+  prediction_module_id,version
+  ```
+    - これはprediction_module_id確認専用
+* 使い方
+  + CSVを同梱の```workflow_prediction_csv.py```を利用して作成するか、上記フォーマットの説明にしたがって作成する。
+  + dryrunでCSVに対応したsql文を表示させて確認する
+  + changeで実際の変更を実施する。
+  + viewは予測モジュールのpbs_queueとpbs_node_groupカラム確認せんようとなっている。
 
 # 参考文献
 * pairgraph
