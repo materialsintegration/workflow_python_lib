@@ -187,6 +187,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
     retry_count = 0
     #outfile = open(logfile, "a")
     outmessage = ""
+    #version = "v4"
     while True:
         #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
         sys.stdout.write("%s - ワークフローAPI実行開始\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
@@ -704,8 +705,9 @@ def main():
             elif item == "port":
                 port = config["port"]
             else:
-                sys.stderr.write("未知のキー(%s)です。"%item)
-                sys.stderr.flush()
+                input_params[item] = config[item]   # 与えるパラメータ
+                #sys.stderr.write("未知のキー(%s)です。"%item)
+                #sys.stderr.flush()
 
     if workflow_id is None or url is None:
         print("Usage")
