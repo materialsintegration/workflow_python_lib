@@ -109,8 +109,8 @@ def main():
         sys.exit(1)
 
     if url == "nims.mintsys.jp" or url == "nims-dev.mintsys.jp":
-        hostid = "192.168.1.231"
-        api_version = "v4"
+        hostid = "192.168.1.242"
+        api_version = "v5"
     elif url == "u-tokyo.mintsys.jp":
         hostid = "192.168.1.242"
     elif url == "dev-u-tokyo.mintsys.jp":

@@ -112,7 +112,7 @@ def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=Fal
     w_id = "%d%s"%(site_id, workflow_id[6:])
 
     offset = 0
-    if hostID == "192.168.1.231":
+    if hostID == "192.168.1.242":
         offset = 2
     db = mysql.connector.connect(host=hostID, user="root", password="P@ssw0rd")
     cursor = db.cursor()
