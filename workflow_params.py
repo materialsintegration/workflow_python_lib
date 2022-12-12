@@ -94,12 +94,23 @@ def extract_workflow_params(workflow_id, token, url, port="50443", version="v3")
                 time.sleep(300)
                 continue
         
+        # miwfデバッグポイント（2022/12/06追加、通常はコメントアウト）
         #print(json.dumps(miwf_contents, ensure_ascii=False, indent=4))
+        #outfile = open("workflow_params_log.miwf", "w")
+        #for item in miwf_contents:
+        #    outfile.write(json.dumps(miwf_contents, ensure_ascii=False, indent=4))
+        #outfile.close()
         
         # 各ポート情報を取得する
         input_ports = []
         output_ports = []
         for item in miwf_contents:
+            if item["category"] == "inputdata" and("descriptor" in item) is False:
+                print("どこにも繋がっていない入力ポートがあります。（%s)"%item["name"])
+                sys.exit(1)
+            if item["category"] == "inputlist" and("descriptor" in item) is False:
+                print("どこにも繋がっていない入力ポートがあります。（%s)"%item["name"])
+                sys.exit(1)
             if item["category"] == "inputdata":
                 #print("port name = %s"%item["name"])
                 input_ports.append([item["name"], item["descriptor"], item["paramtype"], item["required"]])
@@ -107,6 +118,9 @@ def extract_workflow_params(workflow_id, token, url, port="50443", version="v3")
                 input_ports.append([item["name"], item["descriptor"], item["paramtype"], item["required"]])
         
         for item in miwf_contents:
+            if item["category"] == "outputdata" and ("descriptor" in item) is False:
+                print("どこにも繋がっていない出力ポートがあります。（%s)"%item["name"])
+                sys.exit(1)
             if item["category"] == "outputdata":
                 output_ports.append([item["name"], item["descriptor"], item["paramtype"]])
 
