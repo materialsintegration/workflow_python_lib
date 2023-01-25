@@ -382,6 +382,9 @@ class MIApiCommandClass(object):
         # 入力ファイルのリンクをリアル名で作成する。
         if translate_input is True:
             for item in self.input_port_names:
+                if (item in self.input_filenames) is False:
+                    # CTC issue #1365関連のMIntシステムの不具合のワークアラウンドに対応。(2023/01/25 Y.Manaka)
+                    continue
                 filename = os.path.basename(self.input_filenames[item])
                 #print("key = %s(%s)"%(filename, self.input_port_names[item]))
                 #if filename == "value":         # ループの場合スキップする
