@@ -362,7 +362,7 @@ class MIApiCommandClass(object):
                 # テーブル化するときに整合性がとれなくなる場合に対応
                 # それで必要なファイルがなくてスクリプトが失敗しても関知しない。
                 # CTC issue #1365関連のMIntシステムの不具合のワークアラウンドに対応。(2023/01/25 Y.Manaka)
-                pass
+                continue
             if filename == "value":
                 self.input_realnames[item] = self.input_port_names[item]
             else:
