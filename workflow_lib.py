@@ -322,6 +322,12 @@ class MIApiCommandClass(object):
                 print('%s 入力ポートに指定したファイルが存在しません。(port名:%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item), flush=True)
                 self.input_filenames[item] = item   # 存在しない場合ポート名を格納する
                 #sys.exit(1)
+            except (RequiredPortMissingError):
+                # 非必須ポートなどの配置をしなかった場合スクリプトでポート名に対応するファイル名を
+                # テーブル化するときに整合性がとれなくなる場合に対応
+                # それで必要なファイルがなくてスクリプトが失敗しても関知しない。
+                # CTC issue #1365関連のMIntシステムの不具合のワークアラウンドに対応。(2023/01/25 Y.Manaka)
+                print('%s 指定したポートは存在しません。(port名:%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item), flush=True)
 
         '''
         出力ポートのファイル名を取得し、ポート名:ファイル名 の辞書にする。
@@ -335,6 +341,8 @@ class MIApiCommandClass(object):
             except (FileExistsError):
                 print('%s 出力ポートに指定したファイルは既に存在します。(port名:%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item), flush=True)
                 #sys.exit()
+            except (RequiredPortMissingError):
+                print('%s 指定したポートは存在しません。(port名:%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item), flush=True)
 
             self.output_filenames[item] = outputfile
             tooldir = os.path.dirname(outputfile)
