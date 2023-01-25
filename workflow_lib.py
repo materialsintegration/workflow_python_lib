@@ -322,7 +322,7 @@ class MIApiCommandClass(object):
                 print('%s 入力ポートに指定したファイルが存在しません。(port名:%s)'%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item), flush=True)
                 self.input_filenames[item] = item   # 存在しない場合ポート名を格納する
                 #sys.exit(1)
-            except (RequiredPortMissingError):
+            except (requiredport_missing_error.RequiredPortMissingError):
                 # 非必須ポートなどの配置をしなかった場合スクリプトでポート名に対応するファイル名を
                 # テーブル化するときに整合性がとれなくなる場合に対応
                 # それで必要なファイルがなくてスクリプトが失敗しても関知しない。
