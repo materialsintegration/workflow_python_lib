@@ -355,25 +355,18 @@ class MIApiCommandClass(object):
         '''
         # 入力側
         for item in self.input_port_names:
-            filename = os.path.basename(self.input_filenames[item])     # ポート名に設定されたファイル名
+            try:
+                filename = os.path.basename(self.input_filenames[item])     # ポート名に設定されたファイル名
+            except (KeyError):
+                # 非必須ポートなどの配置をしなかった場合スクリプトでポート名に対応するファイル名を
+                # テーブル化するときに整合性がとれなくなる場合に対応
+                # それで必要なファイルがなくてスクリプトが失敗しても関知しない。
+                # CTC issue #1365関連のMIntシステムの不具合のワークアラウンドに対応。(2023/01/25 Y.Manaka)
+                pass
             if filename == "value":
                 self.input_realnames[item] = self.input_port_names[item]
             else:
                 self.input_realnames[filename] = self.input_port_names[item]    # ポート名をキーにした値としてのリアル名
-#            for real_name in self.input_realname_tables:
-#                if filename.startswith(real_name) is True:
-#                    #self.input_realnames[filename] = self.input_realname_tables[real_name]
-#                    self.input_realnames[filename] = self.input_port_names[item]    # ポート名をキーにした値としてのリアル名
-#                elif filename == "value":
-#                    self.input_realnames[item] = self.input_realname_tables[real_name]
-
-                #print("%s input_port_name = %s / filename = %s / realname = %s"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), item, filename, self.input_realname_tables[real_name]))
-        # 出力側
-        #for item in self.output_port_names:
-        #    filename = os.path.basename(self.output_filenames[item])
-        #    if (item in self.output_realname_tables) is True:
-        #        self.output_realnames[filename] = self.output_realname_tables[item]
-        #        print("%s output_port_name = %s / filename = %s / realname = %s"%(item, filename, self.output_realname_tables[item]))
 
         '''
         ディレクトリ名が取得できていれば、移動する
