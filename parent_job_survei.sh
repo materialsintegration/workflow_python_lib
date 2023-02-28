@@ -33,6 +33,12 @@ check_parent_job() {
     while [ 1 = 1 ]; 
     do
         ssh $MISYSTEM_HEADNODE_HOSTNAME qstat $myjob_id > qsub_myjob.log 2>&1
+        return_message=`cat qsub_myjob.log`
+        if [ "$return_message" == "ssh_exchange_identification: Connection closed by remote host" ]; then
+            echo "`date +%Y/%m/%d-%H:%M:%S` : qstat returned "$return_message". continue surveillance." >> $logfilename
+            sleep 1
+            continue
+        fi
         ret_code=`echo $?`
         if [ "$ret_code" = 0 ]; then
             ret=`cat qsub_myjob.log | awk NR==3 | awk '{print $5}'`
