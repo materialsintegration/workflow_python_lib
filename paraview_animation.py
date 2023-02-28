@@ -185,10 +185,14 @@ def divide_vtk(file_pattern="*_to_*.vtk", time_temp=True, represent=None, filena
     for item in files:
         os.remove(item)
 
-def get_avs_animation(file_pattern="*_AVese_*.dat", time_temp=True, represent=None, filename_pattern=None, save_step=1, amount=None):
+def get_avs_animation(file_pattern="*_AVese_*.dat", time_temp=False, represent=None, filename_pattern=None, save_step=1, amount=None, jpg_filename_base=""):
     '''
     AVS用出力ファイルのアニメーションを作成する。
     '''
+
+    if jpg_filename_base == "":
+        print("JPEGベースファイル名を指定してください。")
+        return False
 
     files = glob(file_pattern)
 
@@ -223,7 +227,6 @@ def get_avs_animation(file_pattern="*_AVese_*.dat", time_temp=True, represent=No
         infilenames.append(filename_pattern%avs_count)
 
     infilenames.append(filename_pattern%last_num)
-    jpg_filenames = []
 
     print("ファイル処理開始")
     for infilename in infilenames:
@@ -231,7 +234,8 @@ def get_avs_animation(file_pattern="*_AVese_*.dat", time_temp=True, represent=No
             continue
         print("processing avs file(%s)"%infilename)
     
-        reader = AVSUCDReader(infilename)
+        ptime = infilename.split(".")[0].split("_")[-1]
+        reader = AVSUCDReader(FileNames=infilename)
         points = reader.PointData
 
         view = GetActiveView()    # 出力画像のアングル等の指定の準備
@@ -260,24 +264,24 @@ def get_avs_animation(file_pattern="*_AVese_*.dat", time_temp=True, represent=No
         viewobject.SetScalarBarVisibility(view, True)
         Render()
 
-        key = os.path.splitext(infilename)[1]
-        WriteImage("%s-%08d.jpg"%(key, count))
+        key = os.path.splitext(infilename)[0]
+        WriteImage("%s.jpg"%key)
         time.sleep(2.0)
-        img = PIL.Image.open("%s-%08d.jpg"%(key, count))
+        img = PIL.Image.open("%s.jpg"%key)
+        print("JPEGイメージ作成中(filename='%s.jpg')"%key)
         draw = PIL.ImageDraw.Draw(img)
         if time_temp is True:
             draw.text((30, 350), u'%08d(K)'%ptemp, fill=(255, 255, 255), font=font)
         else:
             draw.text((30, 350), u'%s'%ptime, fill=(255, 255, 255), font=font)
-        jpg_filename = "%s-%08d.jpg"%(key, count)
-        jpg_filenames.append(key)
+        jpg_filename = "%s.jpg"%key
+        #jpg_filenames.append(key)
         img.save(jpg_filename)
         Delete()
         Delete(view)
-    count += 1
+        count += 1
 
-    for item in jpg_filenames:
-        subprocess.call("convert -delay 200 -loop 0 %s*.jpg %s.gif > convert.log 2>&1"%(item, item), shell=True, executable='/bin/bash')
+    subprocess.call("convert -delay 200 -loop 0 %s*.jpg %s.gif > convert.log 2>&1"%(jpg_filename_base, jpg_filename_base), shell=True, executable='/bin/bash')
 
     files = glob("*.jpg")
     for item in files:
