@@ -109,8 +109,8 @@ def main():
         sys.exit(1)
 
     if url == "nims.mintsys.jp" or url == "nims-dev.mintsys.jp":
-        hostid = "192.168.1.242"
-        api_version = "v5"
+        hostid = "192.168.1.211"
+        api_version = "v6"
     elif url == "u-tokyo.mintsys.jp":
         hostid = "192.168.1.242"
     elif url == "dev-u-tokyo.mintsys.jp":
@@ -122,12 +122,12 @@ def main():
         sys.exit(1)
 
     #retval, run_list = get_runlist(token, url, siteid, workflow_id, True)
-    retval, run_list = get_runlist_fromDB(siteid, workflow_id, hostid, True)
+    retval, run_list, workflow_id = get_runlist_fromDB(siteid, workflow_id, hostid, True)
     cmd = "du -sh"
     if retval is False:
-        sys.stderr.write("url : %s\nresponse : %s\n"%(url, run_list.text))
+        sys.stderr.write("url : %s\nresponse : %s\n"%(url, run_list))
         sys.stderr.flush()
-        return "url : %s\nresponse : %s"%(url, run_list.text)
+        return "url : %s\nresponse : %s"%(url, run_list)
 
     for run_id in run_list:
         if start_from is not None:

@@ -67,33 +67,6 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def utc_to_jst(timestamp_utc):
-    '''
-    タイムゾーン変換：UTCからJSTへ
-    '''
-    datetime_utc = datetime.datetime.strptime(timestamp_utc + "+0000", "%Y-%m-%d %H:%M:%S.%f%z")
-    datetime_jst = datetime_utc.astimezone(datetime.timezone(datetime.timedelta(hours=+9)))
-    timestamp_jst = datetime.datetime.strftime(datetime_jst, '%Y-%m-%d %H:%M:%S.%f')
-    return timestamp_jst
-
-def getJstDatetime(utc_time):
-    '''
-    標準時から日本時間へ変更した、dateteimオブジェクトを返す
-    '''
-
-    jst_start_time = utc_time.split("Z")[0] + ".00000"
-    jst_start_time = jst_start_time.replace("T", " ")
-    retval = utc_to_jst(jst_start_time)
-    YYMMDD = retval.split()[0]
-    hhmmss = retval.split()[1]
-    Y = int(YYMMDD.split("-")[0])
-    M = int(YYMMDD.split("-")[1])
-    D = int(YYMMDD.split("-")[2])
-    h = int(hhmmss.split(":")[0])
-    m = int(hhmmss.split(":")[1])
-    s = int(hhmmss.split(":")[2].split(".")[0])
-    return datetime.datetime(Y, M, D, h, m, s)
-
 def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=False):
     '''
     DBから直接ラン詳細の取得
@@ -112,15 +85,18 @@ def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=Fal
     w_id = "%d%s"%(site_id, workflow_id[6:])
 
     offset = 0
-    if hostID == "192.168.1.242":
+    if hostID == "192.168.1.211":
         offset = 2
     db = mysql.connector.connect(host=hostID, user="root", password="P@ssw0rd")
     cursor = db.cursor()
+    # run全体の個数を把握するためw_idの全ラン情報を集める
     cursor.execute("use workflow")
     cursor.execute("""select * from workflow.run where workflow_id='""" + w_id + """';""")
     rows = cursor.fetchall()
-    cursor.close()
-    db.close()
+    # w_idのワークフローの名前を取得する
+    cursor.execute("""select workflow_name from workflow.workflow where workflow_id='""" + w_id + """';""")
+    names = cursor.fetchall()
+    workflow_name = names[0][0]
 
     run_lists = []
     for item in rows:
@@ -131,12 +107,15 @@ def get_runlist_fromDB(siteid, workflow_id, hostID='127.0.0.1', only_runlist=Fal
         run_info["start"] = item[19 + offset]
         run_info["end"] = item[20 + offset]
         run_info["completion"] = item[10]
-        run_info["workflow_name"] = ""
+        run_info["workflow_name"] = workflow_name
         run_info["uuid"] = item[5]
         run_info["deleted"] = str(item[15 + offset])
         run_lists.append(run_info)
 
-    return True, run_lists
+    cursor.close()
+    db.close()
+
+    return True, run_lists, workflow_name
 
 def get_runlist(token, url, siteid, workflow_id, only_runlist=False, version="v3", timeout=(5.0, 300.0)):
     '''
