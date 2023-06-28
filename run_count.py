@@ -64,21 +64,25 @@ def main():
     print(len(items))
 
     if url == "nims.mintsys.jp":
-        hostid = "192.168.1.231"
+        hostid = "192.168.1.211"
     elif url == "u-tokyo.mintsys.jp":
         hostid = "192.168.1.242"
     elif url == "dev-u-tokyo.mintsys.jp":
         hostid = "192.168.1.142"
     elif url == "nims-dev.mintsys.jp":
-        hostid = "192.168.1.231"
+        hostid = "192.168.1.211"
 
     for item in items:
         workflow_id = item["workflow_id"].split("/")[-1]
-        retval, ret = get_runlist_fromDB(siteid, workflow_id)
+        retval, ret, workflow_name = get_runlist_fromDB(siteid, workflow_id)
         if len(ret) == 0:
             print("%s はランがありませんでした。"%workflow_id)
+        elif retval is False:
+            print(ret)
         else:
-            print("%s は %d個のランがありました"%(workflow_id, len(ret)))
+            print("%s(%s) は %d 個のランがありました"%(workflow_id, workflow_name, len(ret)))
+            sys.stderr.write("%s,%s,%d\n"%(workflow_id, workflow_name, len(ret)))
+            sys.stderr.flush()
 
 if __name__ == '__main__':
 
