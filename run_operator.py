@@ -51,10 +51,11 @@ def main():
     '''
 
     print(len(sys.argv))
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         sys.exit(1)
 
     infile = sys.argv[1]
+    siteid = sys.argv[2]
 
     run_infos = read_run_data(infile)
     # 前回の処理年月の入ったファイル
@@ -76,14 +77,24 @@ def main():
     print("%s / %s"%(year, month))
     count = 0
     amount = 0
+    outfile = open("create_index.sh", "w")
+    outfile.write("#!/bin/bash\n")
+    outfile.write("# ラン短縮ディレクトリ作成\n")
     for item in run_infos:
         if run_infos[item][1].year == year and run_infos[item][1].month == month:
             count += 1
-            dirname = getExecDirName("site00011", run_infos[item][0])
+            dirname = getExecDirName(siteid, run_infos[item][0])
             ret = getExecDirUsage(dirname)
+            if ret[1] == -1 or ret[1] == -2:
+                print("実行時ディレクトリ %s は存在していません。"%dirname)
+                continue
             amount += ret[1]
-            #print("%s / %s / %s / %s / %s %s"%(item, run_infos[item][0], run_infos[item][1].year, run_infos[item][1].month, ret[0], ret[1]))
+            outfile.write('echo "%010d(%s)"\n'%(count, dirname))
+            outfile.write("cd %s\n"%dirname)
+            outfile.write("/home/misystem/taverna-commandline-tool/remakeFileListAndCache.sh\n")
+            print("%s / %s / %s / %s / %s %s"%(item, run_infos[item][0], run_infos[item][1].year, run_infos[item][1].month, ret[0], ret[1]))
 
+    outfile.close()
     print("processed total %d runs"%count)
     print("この期間の総容量は %s"%convert_size(amount))
     outfile = open("previous_process.dat", "w")
