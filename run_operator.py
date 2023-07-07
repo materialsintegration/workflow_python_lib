@@ -77,7 +77,7 @@ def main():
     print("%s / %s"%(year, month))
     count = 0
     amount = 0
-    outfile = open("create_index.sh", "w")
+    outfile = open("create_index.sh", "a")
     outfile.write("#!/bin/bash\n")
     outfile.write("# ラン短縮ディレクトリ作成\n")
     for item in run_infos:
