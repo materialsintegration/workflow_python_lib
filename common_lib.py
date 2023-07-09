@@ -254,10 +254,11 @@ def getExecDirName(siteid, internal_run_id):
 
     return dirname
 
-def getExecDirUsage(directory_path):
+def getExecDirUsage(directory_path, onlycheck=False):
     '''
     directory_pathで与えられたディレクトリの容量をタプルで返す。
     @param directory_path(string)
+    @param onlycheck(bool)
     @retval tuple 0:du -shコマンドの表示をそのまま。1:単位なし、バイト値、int型に変換した値。
     '''
 
@@ -265,6 +266,9 @@ def getExecDirUsage(directory_path):
         return [directory_path,-1]
     if os.path.isdir(directory_path) is False:
         return [directory_path,-2]
+
+    if onlycheck is True:
+        return 0, 0
 
     cwd = os.getcwd()
     os.chdir(directory_path)

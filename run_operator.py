@@ -84,7 +84,7 @@ def main():
         if run_infos[item][1].year == year and run_infos[item][1].month == month:
             count += 1
             dirname = getExecDirName(siteid, run_infos[item][0])
-            ret = getExecDirUsage(dirname)
+            ret = getExecDirUsage(dirname, True)
             if ret[1] == -1 or ret[1] == -2:
                 print("実行時ディレクトリ %s は存在していません。"%dirname)
                 continue
