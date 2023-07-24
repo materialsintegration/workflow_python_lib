@@ -234,6 +234,22 @@ def getJstDatetime(utc_time):
     s = int(hhmmss.split(":")[2].split(".")[0])
     return datetime.datetime(Y, M, D, h, m, s)
 
+def getRunIDToShortDirPath(internal_run_id):
+    '''
+    internal_run_idから短縮ディレクトリを組み立てて返す。
+    @param internal_run_id(string) workflow.run DBテーブルのinternal_run_id(32文字)の文字列
+    @retval (string) calculation以下の実行時ディレクトリ。
+    '''
+
+    ret = ""
+    if len(internal_run_id) != 32:
+        ret = "internal_run id charactor lenth is not 32"
+        return ret
+
+    dirname = "%s/%s/%s/%s%s%s%s%s%s%s%s%s%s%s%s%s"%(internal_run_id[0:2], internal_run_id[2:4], internal_run_id[4:6], internal_run_id[6:8], internal_run_id[8:10], internal_run_id[10:12], internal_run_id[12:14], internal_run_id[14:16], internal_run_id[16:18], internal_run_id[18:20], internal_run_id[20:22], internal_run_id[22:24], internal_run_id[24:26], internal_run_id[26:28], internal_run_id[28:30], internal_run_id[30:32])
+
+    return dirname
+
 def getRunIDToDirName(internal_run_id):
     '''
     internal_run_idから実行時ディレクトリ名（２文字で１ディレクトリ）を組み立てて返す。
