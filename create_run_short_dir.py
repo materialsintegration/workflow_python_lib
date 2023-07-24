@@ -8,7 +8,7 @@
 
 '''
 DBから取得した、workflow.runの情報から、条件に合うランのinternal_idを返す。
-これは古いデータディレクトリの拡張領域への追い出しと、シンボリックリンク作成に使用される。
+これを利用してラン短縮ディレクトリ作成用のスクリプトを生成する。
 '''
 
 import sys, os
@@ -59,8 +59,8 @@ def main():
 
     run_infos = read_run_data(infile)
     # 前回の処理年月の入ったファイル
-    if os.path.exists("previous_process_move.dat") is True:
-        infile = open("previous_process_move.dat", "r")
+    if os.path.exists("previous_process.dat") is True:
+        infile = open("previous_process.dat", "r")
         line = infile.read().split("\r")[0].split(",")
         year = int(line[0])
         month = int(line[1])
@@ -77,34 +77,28 @@ def main():
     print("%s / %s"%(year, month))
     count = 0
     amount = 0
-    outfile = open("move_dir_to_external.sh", "a")
+    outfile = open("create_index.sh", "a")
     outfile.write("#!/bin/bash\n")
-    outfile.write("# ディレクトリをexternalへ移動する\n")
+    outfile.write("# ラン短縮ディレクトリ作成\n")
     for item in run_infos:
         if run_infos[item][1].year == year and run_infos[item][1].month == month:
             count += 1
             dirname = getExecDirName(siteid, run_infos[item][0])
-            dir_hie = getRunIDToDirName(run_infos[item][0])
             ret = getExecDirUsage(dirname, True)
             if ret[1] == -1 or ret[1] == -2:
                 print("実行時ディレクトリ %s は存在していません。"%dirname)
                 continue
             amount += ret[1]
-            outfile.write('echo "%s(%s)"\n'%(item, dirname))
+            outfile.write('echo "%010d(%s)"\n'%(count, dirname))
             outfile.write("cd %s\n"%dirname)
-            outfile.write("cd ../\n")
-            dir_hie_path0 = os.path.join(*dir_hie.split("/")[0:-1])
-            outfile.write("mkdir -p /external1/assets/workflow/%s/calculation/%s\n"%(siteid, dir_hie_path0))
-            outfile.write("mv %s /external1/assets/workflow/%s/calculation/%s\n"%(dir_hie.split("/")[-1], siteid, dir_hie_path0))
-            outfile.write("ln -s /external1/assets/workflow/%s/calculation/%s .\n"%(siteid, dir_hie))
+            outfile.write("/home/misystem/taverna-commandline-tool/remakeFileListAndCache.sh\n")
             print("%s / %s / %s / %s / %s %s"%(item, run_infos[item][0], run_infos[item][1].year, run_infos[item][1].month, ret[0], ret[1]))
 
     outfile.close()
     print("processed total %d runs"%count)
     print("この期間の総容量は %s"%convert_size(amount))
-    outfile = open("previous_process_move.dat", "w")
+    outfile = open("previous_process.dat", "w")
     outfile.write("%s,%s\n"%(year, month))
-    outfile.close()
 
 if __name__ == "__main__":
 
