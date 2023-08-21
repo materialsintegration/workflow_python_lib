@@ -44,9 +44,15 @@ check_parent_job() {
             ret=`cat qsub_myjob.log | awk NR==3 | awk '{print $5}'`
             # 終了検知
             if [ $ret = "C" ]; then
-                echo "`date +%Y/%m/%d-%H:%M:%S` parent job ended. will stop child job(s)" >> $logfilename
+                echo "`date +%Y/%m/%d-%H:%M:%S` parent job ended. will stop child job(s), if still running." >> $logfilename
                 for item in ${jobids[@]}
                 do
+                    # 子ジョブのステータスがRやQの時のみqdelする
+                    ssh $MISYSTEM_HEADNODE_HOSTNAME qstat $item > qsub_childjob.log 2>&1
+                    child_ret=`cat qsub_childjob.log | awk NR==3 | awk '{print $5}'`
+                    if [ $child_ret = "C" ]; then
+                        continue
+                    fi
                     echo "`date +%Y/%m/%d-%H:%M:%S` : ssh $MISYSTEM_HEADNODE_HOSTNAME qdel $item" >> $logfilename
                     ssh $MISYSTEM_HEADNODE_HOSTNAME qdel $item
                 done
