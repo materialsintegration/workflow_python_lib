@@ -35,7 +35,7 @@ def status_out(message=""):
     outfile.flush()
     outfile.close()
 
-def extract_workflow_params(workflow_id, token, url, port="50443", version="v3"):
+def extract_workflow_params(workflow_id, token, url, port="50443", version="v3", retry=True):
     '''
     ワークフロー詳細情報を取得
     @param workflow_id (string) ワークフローID。e.g. W000020000000197
@@ -50,6 +50,8 @@ def extract_workflow_params(workflow_id, token, url, port="50443", version="v3")
 
         retry_count += 1
         if res.status_code != 200 and res.status_code != 201:
+            if retry is False:
+                return False, None, None
             if res.status_code == 401 and res.json()["errors"][0]["code"] == "0002":
                 sys.stderr.write("%s - api failed(%s)\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"), res.json()["errors"][0]["message"]))
                 sys.stderr.flush()
