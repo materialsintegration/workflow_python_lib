@@ -169,8 +169,9 @@ def main():
         if os.path.exists(dirname) is False:
             print("%s はありません"%dirname)
         else:
-            outfile.write("# workflow_id = %s\n")
+            outfile.write("# workflow_id = %s / Run = %s\n"(workflow_id, run_id))
             outfile.write("../gpdb_importer.sh %s %s %s -charset UTF8 -revision %s -type CALC\n"%(workflow_id, dirname, dirname, workflow_revision))
+            outfile.flush()
         #if extra_cmd is None:
         #    ret = subprocess.check_output(cmd.split())
         #    amount = ret.decode("utf-8").split("\n")[0]
