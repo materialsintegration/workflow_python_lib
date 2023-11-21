@@ -112,10 +112,12 @@ def main():
         run_list.append(run)
     ## ランIDを逆順にする
     run_list.reverse()
-    for run in run_list:
-        print(run)
+    #for run in run_list:
+    #    print(run)
     #sys.exit(0)
 
+    outfile = open("gpdb_import.sh", "w")
+    outfile.write("#!/bin/bash\n")
     # ランIDの詳細を取得して、gpdb_urlに格納されているURIから実行ディレクトリを得る
     for run_id in run_list:
         #if start_from is not None:
@@ -151,6 +153,8 @@ def main():
         #        uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
         rundetail = get_rundetail(token, url, siteid, run_id, version=api_version)
         uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
+        workflow_id = rundetail["workflow_id"].split("/")[-1]
+        workflow_revision = rundetail["workflow_revision"]
         #     try:
         #         uuid = run_id["uuid"].decode()
         #     except:
@@ -164,6 +168,9 @@ def main():
         #os.chdir(dirname)
         if os.path.exists(dirname) is False:
             print("%s はありません"%dirname)
+        else:
+            outfile.write("# workflow_id = %s\n")
+            outfile.write("../gpdb_importer.sh %s %s %s -charset UTF8 -revision %s -type CALC\n"%(workflow_id, dirname, dirname, workflow_revision))
         #if extra_cmd is None:
         #    ret = subprocess.check_output(cmd.split())
         #    amount = ret.decode("utf-8").split("\n")[0]
@@ -199,6 +206,8 @@ def main():
         #        sys.stderr.write("  %s"%ret.stderr.decode("utf8"))
         #        sys.stderr.flush()
         #    print("")
+
+    outfile.close()
 
 if __name__ == '__main__':
     main()
