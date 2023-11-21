@@ -89,12 +89,12 @@ for item in candidate_modules:
         rev = v3
 
 object_name = target_module.find(".//predictionModuleSchema:objectPath", {"predictionModuleSchema": "http://www.example.com/predictionModuleSchema"}).text
-object_name = object_name.replace("-", "_")
+#object_name = object_name.replace("-", "_")
 # objectPathの実行スクリプト名
 object_exec_name = object_name.split("/")[-1]
 object_name = object_name.split("/")[-1].split(".")[0]
 # パラメータ設定ファイル名
-object_import = object_name + "_import.py"
+object_import = object_name.replace("-", "_") + "_import"
 object_file_name = object_name.split("/")[-1]
 object_package_name = object_name + "_import"
 p_id = target_module.find(".//dc:identifier", {'dc': 'http://purl.org/dc/elements/1.1/'})
@@ -142,7 +142,7 @@ if check_only is True:
     sys.exit(0)
 
 # ファイルの出力
-outfile = open(object_import, "w")
+outfile = open(object_import + ".py", "w")
 outfile.write("# %s用 ポート変換テーブル\n"%object_file_name)
 outfile.write("# objectPathの実行ファイルの先頭でimportして使う\n")
 outfile.write("# このファイルは自動生成されたのち、不足分を追加して使用する。\n")
@@ -221,7 +221,7 @@ outfile.write('sys.path.append("/home/misystem/assets/modules/workflow_python_li
 outfile.write("from workflow_lib import *\n")
 outfile.write("\n")
 outfile.write("# ポート情報設定ファイル取り込み\n")
-outfile.write("from %s import *\n"%object_package_name)
+outfile.write("from %s import *\n"%object_import)
 outfile.write("\n")
 outfile.write("# モジュール初期化\n")
 outfile.write("wf_tool = MIApiCommandClass()\n")

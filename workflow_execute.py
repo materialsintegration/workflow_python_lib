@@ -41,7 +41,7 @@ siteids = {"dev-u-tokyo.mintsys.jp":"site00002",
 RUN_STATUS = {"canceled":"キャンセル", "failure":"起動失敗", "running":"実行中",
               "waiting":"待機中", "paused":"一時停止", "abend":"異常終了"}
 
-api_url ="https://%s:50443/workflow-api/%s/runs"
+api_url ="https://%s:%s/workflow-api/%s/runs"
 CHARSET_DEF = 'utf-8'
 
 def signal_handler(signum, frame):
@@ -99,6 +99,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
     @param token (string) APIトークン
     @param url (string) URLのうちホスト名＋ドメイン名。e.g. dev-u-tokyo.mintsys.jp
     @param input_params (list) <ポート名>:<ファイル名>のリスト。
+    @param port (string) URLのうち、ポート番号（デフォルト50443）
     @param number (string) 文字指定の連続実行数。-1の場合は1回で終了。
     @param timeout (int) 実行中のままこの秒数が過ぎた場合はキャンセルを実行して終了。データ取得はしない。
     @param descriotion (string) 代わりの説明文
@@ -192,7 +193,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
         #weburl = "https://%s:50443/workflow-api/v2/runs"%(url)
         sys.stdout.write("%s - ワークフローAPI実行開始\n"%(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
         sys.stdout.flush()
-        weburl = api_url%(url, version)
+        weburl = api_url%(url, port, version)
         params = {"workflow_id":"%s"%workflow_id}
         res = mintWorkflowAPI(token, weburl, params, json.dumps(run_params), method="post", timeout=(300.0, 300.0), error_print=False)
         # ↑ 正式呼び出し。↓ テスト用の呼び出し
@@ -283,7 +284,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
     start_time = None
     working_dir = None
     #weburl = "https://%s:50443/workflow-api/v2/runs/%s"%(url, runid)
-    weburl = api_url%(url, version) + "/" + runid
+    weburl = api_url%(url, port, version) + "/" + runid
     #print("ワークフロー実行中...")
     while True:
         res = mintWorkflowAPI(token, weburl)
@@ -372,7 +373,7 @@ def workflow_run(workflow_id, token, url, input_params, port="50443", number="-1
     #time.sleep(10)
     # 結果ファイルの取得
     #weburl = "https://%s:50443/workflow-api/v2/runs/%s/data"%(url, runid)
-    weburl = api_url%(url, version) + "/%s/data"%runid
+    weburl = api_url%(url, port, version) + "/%s/data"%runid
     if downloaddir is None:
         os.mkdir("/tmp/%s"%runid)
     else:
@@ -551,11 +552,12 @@ def wait_running_number_api(url, token, number, version="v3"):
 
     global STOP_FLAG
     global api_rul
+    port = "50443"
 
     headers = {'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'Accept': 'application/json'}
     session = requests.Session()
     #weburl = "https://%s:50443/workflow-api/v2/runs"%url
-    weburl = api_url%(url, version)
+    weburl = api_url%(url, port, version)
 
     number = int(number)
     while True:
@@ -715,6 +717,7 @@ def main():
         print("          workflow_id : 必須 Rで始まる15桁のランID")
         print("               token  : 非必須 64文字のAPIトークン")
         print("             misystem : 必須 dev-u-tokyo.mintsys.jpのようなMIntシステムのURL")
+        print("                port  : 非必須 アクセスポート番号。デフォルトは50443")
         print("    <port-name>:<filename for port> : ポート名とそれに対応するファイル名を必要な数だけ。")
         print("                      : 必要なポート名はworkflow_params.pyで取得する。")
         print("              timeout : 連続実行でない場合に、実行中のままこの時間（秒指定）を越えた場合に、キャンセルして終了する。")
@@ -745,8 +748,8 @@ def main():
     else:
         random.seed(seed)
 
-    api_url ="https://%s:" + "%s"%port + "/workflow-api/%s/runs"
-    print(api_url)
+    temp_api_url ="https://%s:"%url + "%s"%port + "/workflow-api/%s/runs"%workflow_id
+    print(temp_api_url)
     signal.signal(signal.SIGINT, signal_handler)
 
     #for i in range(int(number)):
