@@ -128,16 +128,6 @@ def main():
         #        continue
         #sys.stdout.write("run(%s) 情報："%run_id["run_id"],)
         #sys.stdout.flush()
-        #if run_id["status"] == "abend":
-        #    print("%s - ランは異常終了しています。"%run_id["end"])
-        #elif run_id["status"] == "canceled":
-        #    print("%s - ランはキャンセルされてます。"%run_id["end"])
-        #elif run_id["status"] == "failure":
-        #    print("%s - ランは起動失敗しています。"%run_id["start"])
-        #elif run_id["status"] == "completed":
-        #    print("%s - ランは完了しています。(%s)"%(run_id["end"], run_id["completion"]))
-        #else:
-        #    print("%s - ランは%s状態です。"%(run_id["start"], run_status[run_id["status"]]))
         #if run_id["deleted"] == "1":
         #    try:
         #        uuid = run_id["uuid"].decode()
@@ -169,7 +159,17 @@ def main():
         if os.path.exists(dirname) is False:
             print("%s はありません"%dirname)
         else:
-            outfile.write("# workflow_id = %s / Run = %s\n"(workflow_id, run_id))
+            outfile.write("# workflow_id = %s / Run = %s "%(workflow_id, run_id))
+            if rundetail["status"] == "abend":
+                outfile.write("ランは異常終了しています。\n")
+            elif rundetail["status"] == "canceled":
+                outfile.write("ランはキャンセルされてます。\n")
+            elif rundetail["status"] == "failure":
+                outfile.write("ランは起動失敗しています。\n")
+            elif rundetail["status"] == "completed":
+                outfile.write("ランは完了しています。(%s)\n"%rundetail["status"])
+            else:
+                outfile.write("ランは%s状態です。\n"%run_status[rundetail["status"]])
             outfile.write("../gpdb_importer.sh %s %s %s -charset UTF8 -revision %s -type CALC\n"%(workflow_id, dirname, dirname, workflow_revision))
             outfile.flush()
         #if extra_cmd is None:
