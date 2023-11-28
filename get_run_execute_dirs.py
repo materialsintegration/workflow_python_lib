@@ -143,6 +143,7 @@ def main():
         #        uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
         rundetail = get_rundetail(token, url, siteid, run_id, version=api_version)
         uuid = rundetail["gpdb_url"].split("/")[-1].replace("-", "")
+        gpdb_uuid = rundetail["gpdb_url"].split("/")[-1]
         workflow_id = rundetail["workflow_id"].split("/")[-1]
         workflow_revision = rundetail["workflow_revision"]
         #     try:
@@ -158,20 +159,25 @@ def main():
         #os.chdir(dirname)
         if os.path.exists(dirname) is False:
             print("%s はありません"%dirname)
+            continue
         else:
             outfile.write("# workflow_id = %s / Run = %s "%(workflow_id, run_id))
             if rundetail["status"] == "abend":
                 outfile.write("ランは異常終了しています。\n")
             elif rundetail["status"] == "canceled":
                 outfile.write("ランはキャンセルされてます。\n")
+                continue
             elif rundetail["status"] == "failure":
                 outfile.write("ランは起動失敗しています。\n")
+                continue
             elif rundetail["status"] == "completed":
                 outfile.write("ランは完了しています。(%s)\n"%rundetail["status"])
             else:
                 outfile.write("ランは%s状態です。\n"%run_status[rundetail["status"]])
-            outfile.write("../gpdb_importer.sh %s %s %s -charset UTF8 -revision %s -type CALC\n"%(workflow_id, dirname, dirname, workflow_revision))
-            outfile.flush()
+        result_file = "%s/%s_result.csv"%(dirname, gpdb_uuid)
+        attrib_file = "%s/%s_attribute.csv"%(dirname, gpdb_uuid)
+        outfile.write("../gpdb-importer.sh %s %s %s -charset UTF8 -revision %s -type CALC\n"%(workflow_id, result_file, attrib_file, workflow_revision))
+        outfile.flush()
         #if extra_cmd is None:
         #    ret = subprocess.check_output(cmd.split())
         #    amount = ret.decode("utf-8").split("\n")[0]
